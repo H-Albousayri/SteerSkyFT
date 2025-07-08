@@ -15,7 +15,7 @@ for seed in SEEDS:
                     lamda=0.0,
                     device="cuda")
 
-    max_episodes = 5
+    max_episodes = 500
 
     Ep_reward = [] 
     Dist = [] 
