@@ -1,3 +1,4 @@
+from matplotlib.pyplot import tick_params, tight_layout
 from DroneEnv import *
 from Agent import *
 
@@ -39,7 +40,7 @@ for seed in SEEDS:
         
         
     plt.plot(Ep_reward)
-    plt.savefig(f"Drone_Agent/Fig_{seed}")
+    plt.savefig(f"Drone_Agent/Fig_{seed}.pdf", bbox_inches='tight')
     plt.show()
 
     np.save(f"Drone_Agent/Distances_{seed}.npy", np.array(Dist))
