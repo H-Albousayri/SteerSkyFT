@@ -18,7 +18,7 @@ for seed in SEEDS:
     max_episodes = 500
 
     Ep_reward = [] 
-
+    Dist = [] 
     for episode in range(max_episodes):
         state = env.reset()
         episode_reward = 0
@@ -34,6 +34,7 @@ for seed in SEEDS:
             locs += np.mean(env.d_du)
         
         Ep_reward.append(episode_reward/env.max_steps)
+        Dist.append(np.round(np.mean(env.users, axis=0),2)[:2])
         print(f"Episode {episode} | Noise: {np.round(exploration_noise,2)} | Drone: {np.round(env.drone_pos[:2], 2)}, UE: {np.round(np.mean(env.users, axis=0),2)[:2]} AvgDist: {np.mean(env.d_du).item():.2f} | Total Reward: {(Ep_reward[-1]):.2f}")
         
         
@@ -41,6 +42,7 @@ for seed in SEEDS:
     plt.savefig(f"Drone_Agent/Fig_{seed}")
     plt.show()
 
+    np.save(f"Drone_Agent/Distances_{seed}.npy", np.array(Dist))
     ################ Save the model #################  
     filename = f"Drone_Agent/Agent_{seed}:{agent.h_dims1}x{agent.h_dims2}_K={env.K}_WU={env.walking_users}_H={env.drone_height}.pth"
     agent.save_checkpoint(filename)    
