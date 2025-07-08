@@ -15,7 +15,7 @@ for seed in SEEDS:
                     lamda=0.0,
                     device="cuda")
 
-    max_episodes = 500
+    max_episodes = 5
 
     Ep_reward = [] 
     Dist = [] 
@@ -34,7 +34,7 @@ for seed in SEEDS:
             locs += np.mean(env.d_du)
         
         Ep_reward.append(episode_reward/env.max_steps)
-        Dist.append(np.round(np.mean(env.users, axis=0),2)[:2])
+        Dist.append(np.mean(env.d_du).item())
         print(f"Episode {episode} | Noise: {np.round(exploration_noise,2)} | Drone: {np.round(env.drone_pos[:2], 2)}, UE: {np.round(np.mean(env.users, axis=0),2)[:2]} AvgDist: {np.mean(env.d_du).item():.2f} | Total Reward: {(Ep_reward[-1]):.2f}")
         
         
