@@ -13,7 +13,7 @@ set_deterministic(100)
 
 
 drone_env =  CartesianMultiUserEnv(K=NUM_USERS, walking_users=False)
-avris_env = AVRIS(4,4,4,4, num_users=NUM_USERS, num_eves=NUM_EVES, train_G=True)
+avris_env = AVRIS(4,4,4,4, num_users=NUM_USERS, num_eves=NUM_EVES, train_G=True, mode="All")
 avris_env.xyz_loc_UE = drone_env.users
 
 drone_agent = DDPGAgent(state_dim=drone_env.observation_space.shape[0], 
@@ -31,12 +31,11 @@ filename = f"Drone_Agent/Agent:{drone_agent.h_dims1}x{drone_agent.h_dims2}_K={dr
 drone_agent.load_checkpoint(filename)   
 
 
-
 avris_agent = DDPGAgent(state_dim=avris_env.state_dim,
                         action_dim=avris_env.action_dim,
                         h_dims1=512,
                         h_dims2=256,
-                        gamma=0.0,
+                        gamma=0.99,
                         lamda=1e-4,
                         capacity=10000,
                         device="cuda")

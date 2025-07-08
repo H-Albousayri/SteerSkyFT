@@ -2,7 +2,7 @@ import numpy as np
 import random
 
 class AVRIS():
-    def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, train_G=True):
+    def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, train_G=True, mode="Beamforming"):
         super(AVRIS, self).__init__()
         self.My_BS = My_BS
         self.Mz_BS = Mz_BS
@@ -16,6 +16,7 @@ class AVRIS():
         self.K_e = num_eves
 
         self.train_G = train_G
+        self.mode = mode
         ###########################  
         
         self.channel_model = "rician" #OPTIONS = ["los", "rician"]
@@ -89,18 +90,56 @@ class AVRIS():
         
         self.done = False
 
-        if self.train_G:
-            self.action_dim = self.N + self.M*self.K
-        else:
-            self.action_dim = self.N
+        if self.mode == "Beamforming":   
+            if self.train_G:
+                self.action_dim = self.N + self.M*self.K
+            else:
+                self.action_dim = self.N
+            self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
+                                self.M * self.K_e + self.N * self.K_e
+            )
+        elif self.mode == "Move":
+            self.action_dim = 2
+            self.state_dim = 3 + 3*self.K
+        
+        elif self.mode == "All":
+            self.action_dim = self.N + self.M*self.K + 2
+            self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
+                                self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1
+            )
             
-        self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
-                            self.M * self.K_e + self.N * self.K_e
-        )
+
         
         self.name = f"{self.M}x{self.N}_K={self.K}_Ke={self.K_e}_In:{self.state_dim}_Out:{self.action_dim}"
 #####################################################
     
+    def get_state(self):
+        if self.mode == "Beamforming":   
+            return np.hstack([np.angle(self.H_1).reshape(-1)/np.pi,
+                                    np.angle(self.H_2).reshape(-1)/np.pi,
+                                    np.angle(self.H_d).reshape(-1)/np.pi,
+                                    np.angle(self.H_2_e).reshape(-1)/np.pi,
+                                    np.angle(self.H_d_e).reshape(-1)/np.pi
+            ])
+            
+        if self.mode == "All":   
+            return np.hstack([np.angle(self.H_1).reshape(-1)/np.pi,
+                                    np.angle(self.H_2).reshape(-1)/np.pi,
+                                    np.angle(self.H_d).reshape(-1)/np.pi,
+                                    np.angle(self.H_2_e).reshape(-1)/np.pi,
+                                    np.angle(self.H_d_e).reshape(-1)/np.pi,
+                                    self.BS_UAV_dis, 
+                                    self.UAV_UE_dis.flatten(), 
+                                    self.BS_UE_dis.flatten(), 
+                                    self.UAV_Eve_dis.flatten(),
+                                    self.BS_Eve_dis.flatten()
+                                    
+            ])
+            
+        elif self.mode == "Move":
+            return np.concatenate([self.xyz_loc_UAV, (self.xyz_loc_UE - self.xyz_loc_UAV).flatten()])
+    
+            
     def get_steering_vector_BS(self, delta_vec, distance):
         """BS steering vector (yz-plane) for delta_vec (shape [3,] or [K, 3])."""
         delta_y = delta_vec[..., 1]  # Shape: () or [K,]
@@ -275,12 +314,7 @@ class AVRIS():
         secrecy_rate = np.sum(self.bit_rates) - self.scale_eve * np.sum(self.eve_rates)
         #####################################################
         
-        self.state = np.hstack([np.angle(self.H_1).reshape(-1)/np.pi,
-                                np.angle(self.H_2).reshape(-1)/np.pi,
-                                np.angle(self.H_d).reshape(-1)/np.pi,
-                                np.angle(self.H_2_e).reshape(-1)/np.pi,
-                                np.angle(self.H_d_e).reshape(-1)/np.pi
-        ])
+        self.state = self.get_state()
                         
         return self.state
 
@@ -301,7 +335,19 @@ class AVRIS():
         
 ###################################################
     def step(self, action):
-        self.Phi = np.diag(np.exp(1j * action[:self.N] * np.pi))
+        if self.mode == "Move":
+            dx, dy = action[self.N+self.M*self.K:]
+            self.xyz_loc_UAV[0:2] += dx, dy
+        
+        if self.mode == "All":
+            self.Phi = np.diag(np.exp(1j * action[:self.N] * np.pi))
+            self.G = np.exp(1j * action[self.N:self.N+self.M*self.K] * np.pi).reshape(self.M, self.K) / np.sqrt(self.M)
+            dx, dy = action[self.N+self.M*self.K:]
+            self.xyz_loc_UAV[0:2] += dx, dy
+        
+        if self.mode == "Beamforming" and self.train_G:
+            self.Phi = np.diag(np.exp(1j * action[:self.N] * np.pi))
+            self.G = np.exp(1j * action[self.N:self.N+self.M*self.K] * np.pi).reshape(self.M, self.K) / np.sqrt(self.M)
         
         delta_BS_UAV = self.xyz_loc_UAV - self.xyz_loc_BS
         self.BS_UAV_dis = np.linalg.norm(delta_BS_UAV)
@@ -392,12 +438,7 @@ class AVRIS():
         
         #####################################################
 
-        if self.train_G:
-            self.G = np.exp(1j * action[self.N:self.N+self.M*self.K] * np.pi).reshape(self.M, self.K) / np.sqrt(self.M)
-            
-        else:
-            # H_tilde = np.vstack([H_eff, H_eff_e])
-            # I_tilde = np.vstack([np.eye(self.K), np.zeros((self.K_e, self.K))])
+        if not self.train_G and self.mode != "Move":
             H_tilde = H_eff
             I_tilde = np.eye(self.K)
             H_tilde_H = H_tilde.conj().T
@@ -446,10 +487,6 @@ class AVRIS():
 
         self.H_2_e.T[~self.is_LoS_e] = (np.sqrt(self.B_0 * self.UAV_Eve_dis**(-self.PLexponent)) * H2_rayleigh_e).T[~self.is_LoS_e]
 
-        self.state = np.hstack([np.angle(self.H_1).reshape(-1)/np.pi,
-                                np.angle(self.H_2).reshape(-1)/np.pi,
-                                np.angle(self.H_d).reshape(-1)/np.pi,
-                                np.angle(self.H_2_e).reshape(-1)/np.pi,
-                                np.angle(self.H_d_e).reshape(-1)/np.pi
-        ])
+        self.state = self.get_state()
+        
         return self.state, reward, False, None
