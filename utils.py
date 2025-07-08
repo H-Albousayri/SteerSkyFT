@@ -8,7 +8,7 @@ from cycler import cycler
 from collections import deque
 import matplotlib.pyplot as plt
 
-matplotlib.rcParams['figure.dpi'] = 100
+matplotlib.rcParams['figure.dpi'] = 400
 
 matplotlib.rcParams['axes.grid'] = True  # Enable grid by default
 matplotlib.rcParams['grid.color'] = 'black'  # Set grid color

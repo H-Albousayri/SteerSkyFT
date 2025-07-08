@@ -38,6 +38,7 @@ for seed in SEEDS:
         
         
     plt.plot(Ep_reward)
+    plt.savefig(f"Drone_Agent/Fig_{seed}")
     plt.show()
 
     ################ Save the model #################  
