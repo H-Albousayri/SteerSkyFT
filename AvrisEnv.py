@@ -53,7 +53,7 @@ class AVRIS():
         
         ###########################
         
-        self.xyz_loc_UAV = np.array([60., 10., 20.])
+        self.xyz_loc_UAV = np.array([60., 10., 50.])
         self.xyz_loc_UAV[0:2] = np.random.uniform(20, 70, size=2)
         
         ###########################
@@ -193,6 +193,8 @@ class AVRIS():
 #####################################################
     
     def reset(self):
+        self.LoS_list = []
+        
         self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
         self.xyz_loc_UAV[:2] = np.random.uniform(100, 200, size=(2,))
         
@@ -373,6 +375,8 @@ class AVRIS():
             self.update_LoS(delta_UAV_UE, self.UAV_UE_dis, "not_eve")
             self.update_LoS(delta_UAV_Eve, self.UAV_Eve_dis, "eve")
             
+        self.LoS_list.append(self.is_LoS.astype(np.float16))
+        
         # print(f"UE LoS: {self.is_LoS} | Eve LoS {self.is_LoS_e}")
         
         #######################################

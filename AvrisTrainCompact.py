@@ -1,6 +1,6 @@
 from utils import *
 from DroneEnv import *
-from Agent import *
+from AgentRobust import *
 
 from AvrisEnv import *
 
@@ -57,4 +57,4 @@ for episode in range(max_episodes):
     Eve_Rates.append(np.mean(Eve_rates))
     Ep_Rewards.append(np.mean(Ep_rewards))
     
-    print(f"Episode {episode} ==> E: {np.round(avris_env.xyz_loc_Eve[0:2],2)[0,:2]} with Total Eve: {Eve_Rates[-1]} || UE: {np.round(np.mean(avris_env.xyz_loc_UE, axis=0),2)[:2]} with Total Rates: {UE_Rates[-1]} || UAV: {np.round(avris_env.xyz_loc_UAV[0:2],2)} || Total Reward: {(Ep_Rewards[-1]):.2f}")    
+    print(f"Episode {episode} ==> E: {np.round(avris_env.xyz_loc_Eve[0:2],2)[0,:2]} with Total Eve: {Eve_Rates[-1]} || UE: {np.round(np.mean(avris_env.xyz_loc_UE, axis=0),2)[:2]} with Total Rates: {UE_Rates[-1]} || UAV: {np.round(avris_env.xyz_loc_UAV[0:2],2)} || LoS%: {np.round(np.mean(np.vstack(avris_env.LoS_list), axis=0),2)} || Total Reward: {(Ep_Rewards[-1]):.2f}")    
