@@ -3,7 +3,6 @@ from DroneEnv import *
 from Agent import *
 
 from AvrisEnv import *
-from AvrisAgent import *
 
 
 NUM_USERS = 5
