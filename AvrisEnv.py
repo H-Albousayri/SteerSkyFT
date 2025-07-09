@@ -30,7 +30,7 @@ class AVRIS():
         ###########################
         
         self.direction = 0 
-        self.consider_LoS = True
+        self.consider_LoS = False
         self.spacing = 10
 
         ###########################    
@@ -53,7 +53,7 @@ class AVRIS():
         
         ###########################
         
-        self.xyz_loc_UAV = np.array([60., 10., 50.])
+        self.xyz_loc_UAV = np.array([60., 10., 20.])
         self.xyz_loc_UAV[0:2] = np.random.uniform(20, 70, size=2)
         
         ###########################
@@ -78,7 +78,7 @@ class AVRIS():
         self.bit_rates = np.zeros(self.K) 
         self.eve_rates = np.zeros(self.K_e)
         self.scale_eve = 1
-        self.reward_scale = 10 
+        self.reward_scale = 1 
         
         self.is_LoS = np.ones(self.K, dtype=np.bool_)
         self.is_LoS_e = np.ones(self.K_e, dtype=np.bool_)
@@ -108,8 +108,6 @@ class AVRIS():
             self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
                                 self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1
             )
-            
-
         
         self.name = f"{self.M}x{self.N}_K={self.K}_Ke={self.K_e}_In:{self.state_dim}_Out:{self.action_dim}"
 #####################################################

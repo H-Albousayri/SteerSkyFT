@@ -19,7 +19,7 @@ avris_agent = DDPGAgent(state_dim=avris_env.state_dim,
                         h_dims2=256,
                         gamma=0.99,
                         lamda=1e-4,
-                        capacity=1000000,
+                        capacity=10000,
                         device="cuda")
                         
 
@@ -46,7 +46,7 @@ for episode in range(max_episodes):
         a_next_state, a_reward, a_done, _ = avris_env.step(a_action)
         
         avris_agent.buffer.push(a_state, a_action, a_reward, a_next_state, a_done)
-        avris_agent.train(batch_size=128)
+        avris_agent.train(batch_size=64)
 
         a_state = a_next_state
         
