@@ -30,8 +30,8 @@ class AVRIS():
         ###########################
         
         self.direction = 0 
-        self.consider_LoS = False
-        self.spacing = 5
+        self.consider_LoS = True
+        self.spacing = 10
 
         ###########################    
         
@@ -53,7 +53,7 @@ class AVRIS():
         
         ###########################
         
-        self.xyz_loc_UAV = np.array([60., 10., 20.])
+        self.xyz_loc_UAV = np.array([60., 10., 50.])
         self.xyz_loc_UAV[0:2] = np.random.uniform(20, 70, size=2)
         
         ###########################
@@ -67,7 +67,7 @@ class AVRIS():
         
         self.xyz_loc_UE = np.zeros((self.K, 3))
         self.xyz_loc_UE[:, 0] = np.arange(self.K) * self.spacing
-        self.xyz_loc_UE[:, 1] = 20
+        self.xyz_loc_UE[:, 1] = 75
         
         ###########################
         
@@ -78,6 +78,7 @@ class AVRIS():
         self.bit_rates = np.zeros(self.K) 
         self.eve_rates = np.zeros(self.K_e)
         self.scale_eve = 1
+        self.reward_scale = 10 
         
         self.is_LoS = np.ones(self.K, dtype=np.bool_)
         self.is_LoS_e = np.ones(self.K_e, dtype=np.bool_)
@@ -88,7 +89,7 @@ class AVRIS():
         self.d = self.lamda / 2 #perfect element spacing
         self.B_0 = (self.lamda / (4 * np.pi)) ** 2
         
-        self.done = False
+        self.done = True
 
         if self.mode == "Beamforming":   
             if self.train_G:
@@ -128,11 +129,11 @@ class AVRIS():
                                     np.angle(self.H_d).reshape(-1)/np.pi,
                                     np.angle(self.H_2_e).reshape(-1)/np.pi,
                                     np.angle(self.H_d_e).reshape(-1)/np.pi,
-                                    self.BS_UAV_dis, 
-                                    self.UAV_UE_dis.flatten(), 
-                                    self.BS_UE_dis.flatten(), 
-                                    self.UAV_Eve_dis.flatten(),
-                                    self.BS_Eve_dis.flatten()
+                                    self.BS_UAV_dis*1e-3, 
+                                    self.UAV_UE_dis.flatten()*1e-3, 
+                                    self.BS_UE_dis.flatten()*1e-3, 
+                                    self.UAV_Eve_dis.flatten()*1e-3,
+                                    self.BS_Eve_dis.flatten()*1e-3
                                     
             ])
             
@@ -193,6 +194,7 @@ class AVRIS():
     
     def reset(self):
         self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
+        self.xyz_loc_UAV[:2] = np.random.uniform(100, 200, size=(2,))
         
         self.Phi = np.eye(self.N, dtype=np.complex128) * np.exp(1j*np.pi* np.random.uniform(-1, 1, size=self.N))
         
@@ -211,6 +213,11 @@ class AVRIS():
         delta_BS_Eve = self.xyz_loc_Eve - self.xyz_loc_BS
         self.BS_Eve_dis = np.linalg.norm(delta_BS_Eve, axis=1)
         
+        
+        if self.consider_LoS:
+            self.update_LoS(delta_UAV_UE, self.UAV_UE_dis, "not_eve")
+            self.update_LoS(delta_UAV_Eve, self.UAV_Eve_dis, "eve")
+            
         #######################################
         ########## Finding Channel 1 ##########
         #######################################
@@ -276,9 +283,7 @@ class AVRIS():
         #######################################
         #######################################
         
-        if self.consider_LoS:
-            self.update_LoS(delta_UAV_UE, self.UAV_UE_dis, "not_eve")
-            self.update_LoS(delta_UAV_Eve, self.UAV_Eve_dis, "eve")
+
             
         H_eff = self.H_2.conj().T @ self.Phi @ self.H_1 + self.H_d
         H_eff_e = self.H_2_e.conj().T @ self.Phi @ self.H_1 + self.H_d_e
@@ -364,6 +369,12 @@ class AVRIS():
         delta_BS_Eve = self.xyz_loc_Eve - self.xyz_loc_BS
         self.BS_Eve_dis = np.linalg.norm(delta_BS_Eve, axis=1)
         
+        if self.consider_LoS:
+            self.update_LoS(delta_UAV_UE, self.UAV_UE_dis, "not_eve")
+            self.update_LoS(delta_UAV_Eve, self.UAV_Eve_dis, "eve")
+            
+        # print(f"UE LoS: {self.is_LoS} | Eve LoS {self.is_LoS_e}")
+        
         #######################################
         ########## Finding Channel 1 ##########
         #######################################
@@ -428,10 +439,6 @@ class AVRIS():
         
         #######################################
         #######################################
-        
-        if self.consider_LoS:
-            self.update_LoS(delta_UAV_UE, self.UAV_UE_dis, "not_eve")
-            self.update_LoS(delta_UAV_Eve, self.UAV_Eve_dis, "eve")
             
         H_eff = self.H_2.conj().T @ self.Phi @ self.H_1 + self.H_d
         H_eff_e = self.H_2_e.conj().T @ self.Phi @ self.H_1 + self.H_d_e
@@ -464,7 +471,7 @@ class AVRIS():
         secrecy_rate = np.sum(self.bit_rates) - self.scale_eve * np.sum(self.eve_rates)
         #####################################################         
         
-        reward = secrecy_rate
+        reward = self.reward_scale* secrecy_rate
 
         self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
         delta_BS_Eve = self.xyz_loc_Eve - self.xyz_loc_BS
