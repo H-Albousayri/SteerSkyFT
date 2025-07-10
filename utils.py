@@ -42,8 +42,8 @@ def get_exponential_noise(episode, total_episodes, initial_noise=0.45, final_noi
 
 
 def set_deterministic(seed: int = 42):
-    random.seed(seed)
-    np.random.seed(seed)
+    # random.seed(seed)
+    # np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)

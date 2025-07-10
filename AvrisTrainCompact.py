@@ -1,17 +1,19 @@
 from utils import *
 from DroneEnv import *
-from Agent import *
+from AgentRobust import *
 
 from AvrisEnv import *
-from AvrisAgent import *
 
+from gym.vector import SyncVectorEnv
 
 NUM_USERS = 5
 NUM_EVES = 1
 
-set_deterministic(100)
+seed = 100
 
-avris_env = AVRIS(4,4,4,4, num_users=NUM_USERS, num_eves=NUM_EVES, train_G=True, mode="All")
+set_deterministic(seed)
+
+avris_env = AVRIS(4,4,4,4, num_users=NUM_USERS, num_eves=NUM_EVES, train_G=True, seed=2, mode="All")
 
 avris_agent = DDPGAgent(state_dim=avris_env.state_dim,
                         action_dim=avris_env.action_dim,
@@ -23,8 +25,8 @@ avris_agent = DDPGAgent(state_dim=avris_env.state_dim,
                         device="cuda")
                         
 
-time_steps = 3000
-max_episodes = 300
+time_steps = 1000
+max_episodes = 3000
 
 Ep_Rewards = []
 UE_Rates = [] 
@@ -58,4 +60,8 @@ for episode in range(max_episodes):
     Eve_Rates.append(np.mean(Eve_rates))
     Ep_Rewards.append(np.mean(Ep_rewards))
     
-    print(f"Episode {episode} ==> E: {np.round(avris_env.xyz_loc_Eve[0:2],2)[0,:2]} with Total Eve: {Eve_Rates[-1]} || UE: {np.round(np.mean(avris_env.xyz_loc_UE, axis=0),2)[:2]} with Total Rates: {UE_Rates[-1]} || UAV: {np.round(avris_env.xyz_loc_UAV[0:2],2)} || Total Reward: {(Ep_Rewards[-1]):.2f}")    
+    print(f"Episode {episode} ==> E: {np.round(avris_env.xyz_loc_Eve[0:2],2)[0,:2]} with Total Eve: {Eve_Rates[-1]} || UE: {np.round(np.mean(avris_env.xyz_loc_UE, axis=0),2)[:2]} with Total Rates: {UE_Rates[-1]} || UAV: {np.round(avris_env.xyz_loc_UAV[0:2],2)} || LoS%: {np.round(np.mean(np.vstack(avris_env.LoS_list), axis=0),2)} || Total Reward: {(Ep_Rewards[-1]):.2f}")    
+
+plt.plot(Ep_Rewards)
+plt.savefig(f"Drone_Agent/AVRIS_{np.round(avris_env.xyz_loc_UAV[2],2)}.pdf", bbox_inches='tight')
+plt.show()

@@ -2,8 +2,12 @@ import numpy as np
 import random
 
 class AVRIS():
-    def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, train_G=True, mode="Beamforming"):
+    def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, train_G=True, seed=None, mode="Beamforming"):
         super(AVRIS, self).__init__()
+        
+        self.seed(seed)
+        self.metadata = {'render.modes': []} # For parallel training
+        
         self.My_BS = My_BS
         self.Mz_BS = Mz_BS
         self.Nx_RIS = Nx_RIS
@@ -105,13 +109,30 @@ class AVRIS():
         
         elif self.mode == "All":
             self.action_dim = self.N + self.M*self.K + 2
+            
             self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
                                 self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1
             )
+<<<<<<< HEAD
+=======
+            
+
+        self.observation_space = self.state_dim
+        self.action_space = self.action_dim
+>>>>>>> my-temp-branch
         
         self.name = f"{self.M}x{self.N}_K={self.K}_Ke={self.K_e}_In:{self.state_dim}_Out:{self.action_dim}"
+        
 #####################################################
     
+    def seed(self, seed=None):
+        """Globally seeds numpy and python random."""
+        np.random.seed(seed)
+        random.seed(seed)
+        return seed
+    
+#####################################################
+
     def get_state(self):
         if self.mode == "Beamforming":   
             return np.hstack([np.angle(self.H_1).reshape(-1)/np.pi,
@@ -191,6 +212,8 @@ class AVRIS():
 #####################################################
     
     def reset(self):
+        self.LoS_list = []
+        
         self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
         self.xyz_loc_UAV[:2] = np.random.uniform(100, 200, size=(2,))
         
@@ -371,6 +394,8 @@ class AVRIS():
             self.update_LoS(delta_UAV_UE, self.UAV_UE_dis, "not_eve")
             self.update_LoS(delta_UAV_Eve, self.UAV_Eve_dis, "eve")
             
+        self.LoS_list.append(self.is_LoS.astype(np.float16))
+        
         # print(f"UE LoS: {self.is_LoS} | Eve LoS {self.is_LoS_e}")
         
         #######################################
