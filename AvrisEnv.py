@@ -30,7 +30,7 @@ class AVRIS():
         ###########################
         
         self.direction = 0 
-        self.consider_LoS = False
+        self.consider_LoS = True
         self.spacing = 10
 
         ###########################    

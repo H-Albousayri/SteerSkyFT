@@ -22,8 +22,8 @@ avris_agent = DDPGAgent(state_dim=avris_env.state_dim,
                         device="cuda")
                         
 
-time_steps = 3000
-max_episodes = 300
+time_steps = 1000
+max_episodes = 3000
 
 Ep_Rewards = []
 UE_Rates = [] 
@@ -58,3 +58,7 @@ for episode in range(max_episodes):
     Ep_Rewards.append(np.mean(Ep_rewards))
     
     print(f"Episode {episode} ==> E: {np.round(avris_env.xyz_loc_Eve[0:2],2)[0,:2]} with Total Eve: {Eve_Rates[-1]} || UE: {np.round(np.mean(avris_env.xyz_loc_UE, axis=0),2)[:2]} with Total Rates: {UE_Rates[-1]} || UAV: {np.round(avris_env.xyz_loc_UAV[0:2],2)} || LoS%: {np.round(np.mean(np.vstack(avris_env.LoS_list), axis=0),2)} || Total Reward: {(Ep_Rewards[-1]):.2f}")    
+
+plt.plot(Ep_Rewards)
+plt.savefig(f"Drone_Agent/AVRIS_{np.round(avris_env.xyz_loc_UAV[2],2)}.pdf", bbox_inches='tight')
+plt.show()
