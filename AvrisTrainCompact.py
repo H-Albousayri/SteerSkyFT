@@ -4,13 +4,16 @@ from AgentRobust import *
 
 from AvrisEnv import *
 
+from gym.vector import SyncVectorEnv
 
 NUM_USERS = 5
 NUM_EVES = 1
 
-set_deterministic(100)
+seed = 100
 
-avris_env = AVRIS(4,4,4,4, num_users=NUM_USERS, num_eves=NUM_EVES, train_G=True, mode="All")
+set_deterministic(seed)
+
+avris_env = AVRIS(4,4,4,4, num_users=NUM_USERS, num_eves=NUM_EVES, train_G=True, seed=2, mode="All")
 
 avris_agent = DDPGAgent(state_dim=avris_env.state_dim,
                         action_dim=avris_env.action_dim,
