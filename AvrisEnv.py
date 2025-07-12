@@ -1,6 +1,6 @@
 import numpy as np 
 import random
-
+from gym import spaces
 class AVRIS():
     def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, train_G=True, seed=None, mode="Beamforming"):
         super(AVRIS, self).__init__()
@@ -114,10 +114,16 @@ class AVRIS():
                                 self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1
             )
         
+        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.action_dim,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.state_dim,), dtype=np.float32)
+        
         self.name = f"{self.M}x{self.N}_K={self.K}_Ke={self.K_e}_In:{self.state_dim}_Out:{self.action_dim}"
         
 #####################################################
+    def close(self):
+        pass
     
+#####################################################    
     def seed(self, seed=None):
         """Globally seeds numpy and python random."""
         np.random.seed(seed)
@@ -335,7 +341,7 @@ class AVRIS():
         
         self.state = self.get_state()
                         
-        return self.state
+        return self.state, {}
 
 #####################################################
     
@@ -512,4 +518,5 @@ class AVRIS():
 
         self.state = self.get_state()
         
-        return self.state, reward, False, None
+        # return self.state, reward, False, None
+        return self.state, reward, False, False, {}

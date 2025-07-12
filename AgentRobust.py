@@ -34,6 +34,10 @@ class ReplayBuffer:
     def push(self, state, action, reward, next_state, done):
         self.buffer.append((state, action, reward, next_state, done))
 
+    def push_batch(self, states, actions, rewards, next_states, dones):
+        for i in range(len(rewards)):
+            self.push(states[i], actions[i], rewards[i], next_states[i], dones[i])
+
     def sample(self, batch_size):
         batch = random.sample(self.buffer, batch_size)
         state, action, reward, next_state, done = zip(*batch)
@@ -44,7 +48,7 @@ class ReplayBuffer:
 
 
 class DDPGAgent:
-    def __init__(self, state_dim, action_dim, 
+    def __init__(self, state_dim, action_dim, max_episodes=300, 
                  h_dims1=256, h_dims2=256, gamma=0.99, tau=0.005, lamda=0.0,
                  capacity=1_000_000, device="cpu", policy_noise=0.05, noise_clip=0.5, policy_delay=2):
         self.device = device
@@ -64,6 +68,16 @@ class DDPGAgent:
         self.critic1_optimizer = optim.Adam(self.critic1.parameters(), lr=1e-3, weight_decay=lamda)
         self.critic2_optimizer = optim.Adam(self.critic2.parameters(), lr=1e-3, weight_decay=lamda)
 
+        self.actor_scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            self.actor_optimizer, T_max=max_episodes, eta_min=1e-6
+        )
+        self.critic1_scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            self.critic1_optimizer, T_max=max_episodes, eta_min=1e-5
+        )
+        self.critic2_scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            self.critic2_optimizer, T_max=max_episodes, eta_min=1e-5
+        )
+
         self.buffer = ReplayBuffer(capacity)
         self.gamma = gamma
         self.tau = tau
@@ -72,9 +86,19 @@ class DDPGAgent:
         self.policy_delay = policy_delay
         self.total_it = 0
 
+    def update_weight_decay(self, new_wd):
+        for opt in [self.actor_optimizer, self.critic1_optimizer, self.critic2_optimizer]:
+            for param_group in opt.param_groups:
+                param_group['weight_decay'] = new_wd
+            
     def select_action(self, state, noise=0.1):
-        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
-        action = self.actor(state).cpu().data.numpy().flatten()
+        if len(state.shape) == 1:
+            state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+            action = self.actor(state).cpu().data.numpy().flatten()
+        else:
+            state = torch.FloatTensor(state).to(self.device)
+            action = self.actor(state).cpu().data.numpy()
+        
         if noise != 0:
             action += np.random.normal(0, noise, size=action.shape)
         return np.clip(action, -1.0, 1.0)

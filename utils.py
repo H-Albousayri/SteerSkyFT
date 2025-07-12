@@ -34,13 +34,36 @@ matplotlib.rcParams['legend.fontsize'] = 10  # Legend font size
 matplotlib.rcParams['figure.titlesize'] = 12  # Figure title font size
 
 
+def linear_decay_weight_decay(initial_wd, step, T_max, eta_min=0.0):
+    # Linearly decay from initial_wd to eta_min over T_max steps
+    step = min(step, T_max)  # prevent going below eta_min
+    return initial_wd - (initial_wd - eta_min) * (step / T_max)
 
 def get_exponential_noise(episode, total_episodes, initial_noise=0.45, final_noise=0.005):
     decay_rate = np.log(final_noise / initial_noise) / total_episodes
     noise = initial_noise * np.exp(decay_rate * episode)
     return max(noise, final_noise)
 
+def get_time_steps(ep, warmup_ep=100, start=1000, end=10000, max_ep=500):
+    if ep <= warmup_ep:
+        return start
+    elif ep >= max_ep:
+        return end
+    else:
+        # Linear interpolation between start and end
+        slope = (end - start) / (max_ep - warmup_ep)
+        return int(start + slope * (ep - warmup_ep))
 
+    
+def linear_increment_minibatches(ep, warmup_ep=0, start_batches=1, max_batches=10, max_ep=500):
+    if ep <= warmup_ep:
+        return start_batches
+    elif ep >= max_ep:
+        return max_batches
+    else:
+        slope = (max_batches - start_batches) / (max_ep - warmup_ep)
+        return int(start_batches + slope * (ep - warmup_ep))
+    
 def set_deterministic(seed: int = 42):
     # random.seed(seed)
     # np.random.seed(seed)
