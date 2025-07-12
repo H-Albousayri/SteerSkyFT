@@ -7,7 +7,7 @@ from AvrisEnv import *
 from gym.vector import SyncVectorEnv
 
 NUM_USERS = 5
-NUM_EVES = 1
+NUM_EVES = 2
 NUM_ENVS = 5
 LAMDA_INIT = 1e-4
 

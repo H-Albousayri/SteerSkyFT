@@ -1,84 +1,149 @@
 from utils import *
 from DroneEnv import *
-from Agent import *
-
+from AgentRobust import *
 from AvrisEnv import *
 
-
-NUM_USERS = 5
-NUM_EVES = 1
-
-set_deterministic(100)
+from gym.vector import SyncVectorEnv
 
 
-drone_env =  CartesianMultiUserEnv(K=NUM_USERS, walking_users=False)
-avris_env = AVRIS(4,4,4,4, num_users=NUM_USERS, num_eves=NUM_EVES, train_G=True, mode="All")
-avris_env.xyz_loc_UE = drone_env.users
+def main():
+    # ----------------------------
+    # ARG PARSER
+    # ----------------------------
+    parser = argparse.ArgumentParser(description="AVRIS DDPG Training")
+    parser.add_argument("--num_users", type=int, default=5, help="Number of legitimate users")
+    parser.add_argument("--num_eves", type=int, default=1, help="Number of eavesdroppers")
+    parser.add_argument("--num_envs", type=int, default=5, help="Number of parallel environments")
+    parser.add_argument("--M", type=int, default=16, help="Number of BS elements")
+    parser.add_argument("--N", type=int, default=16, help="Number of RIS elements")
+    parser.add_argument("--lamda_init", type=float, default=1e-4, help="Initial weight decay")
+    parser.add_argument("--max_episodes", type=int, default=300, help="Maximum number of episodes")
+    parser.add_argument("--seed", type=int, default=100, help="Random seed")
+    parser.add_argument("--device", type=str, default="cuda", help="Device: cuda or cpu")
+    args = parser.parse_args()
 
-drone_agent = DDPGAgent(state_dim=drone_env.observation_space.shape[0], 
-                  action_dim=2,
-                  h_dims1=128,
-                  h_dims2=128,
-                  gamma=0.99,
-                  lamda=0.0,
-                  capacity=1, 
-                  device="cuda")
+    M_, N_ = int(np.sqrt(args.M)), int(np.sqrt(args.N))
+    warmup_episodes = args.max_episodes // 6
 
+    set_deterministic(args.seed)
 
-################ Load the model #################  
-filename = f"Drone_Agent/Agent:{drone_agent.h_dims1}x{drone_agent.h_dims2}_K={drone_env.K}_WU=True_H={drone_env.drone_height}.pth"
-drone_agent.load_checkpoint(filename)   
+    def make_env(seed):
+        def _init():
+            env = AVRIS(My_BS=M_, Mz_BS=M_, Nx_RIS=N_, Ny_RIS=N_,
+                        num_users=args.num_users,
+                        num_eves=args.num_eves,
+                        train_G=True,
+                        seed=seed,
+                        mode="All")
+            return env
+        return _init
 
-
-avris_agent = DDPGAgent(state_dim=avris_env.state_dim,
-                        action_dim=avris_env.action_dim,
-                        h_dims1=512,
-                        h_dims2=256,
-                        gamma=0.99,
-                        lamda=1e-4,
-                        capacity=10000,
-                        device="cuda")
-                        
-
-time_steps = 3000
-max_episodes = 300
-
-Ep_Rewards = []
-UE_Rates = [] 
-Eve_Rates = [] 
-
-for episode in range(max_episodes):
-    UE_rates = []
-    Eve_rates = []
-    Ep_rewards = [] 
+    avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
     
-    d_state = drone_env.reset()
-    avris_env.xyz_loc_UAV = drone_env.drone_pos
     
-    a_state = avris_env.reset()
-    exploration_noise = get_exponential_noise(episode, max_episodes)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    save_dir = f"Drone_Agent/Run_{timestamp}"
+    log_file = setup_logger(save_dir)
+    logging.info(f"Logging to: {log_file}")
     
-    for t in range(time_steps):
-        d_action = drone_agent.select_action(d_state, noise=0.0)
-        a_action = avris_agent.select_action(a_state, noise=exploration_noise)
+    logging.info("========== Training Configuration ==========")
+    for arg, val in vars(args).items():
+        logging.info(f"{arg}: {val}")
         
-        d_next_state, d_rewards, d_done, _ = drone_env.step(d_action)
-        
-        avris_env.xyz_loc_UAV = drone_env.drone_pos
-        a_next_state, a_reward, a_done, _ = avris_env.step(a_action)
-        
-        avris_agent.buffer.push(a_state, a_action, a_reward, a_next_state, a_done)
-        avris_agent.train(batch_size=64)
-        
-        d_state = d_next_state
-        a_state = a_next_state
-        
-        UE_rates.append(np.sum(avris_env.bit_rates))
-        Eve_rates.append(np.sum(avris_env.eve_rates))
-        Ep_rewards.append(a_reward)
-        
-    UE_Rates.append(np.mean(UE_rates))
-    Eve_Rates.append(np.mean(Eve_rates))
-    Ep_Rewards.append(np.mean(Ep_rewards))
+    logging.info(f"{avris_env.envs[0].state_dim}")
+    logging.info(f"{avris_env.envs[0].action_dim}")
+    logging.info("=============================================")
     
-    print(f"Episode {episode} ==> E: {np.round(avris_env.xyz_loc_Eve[0:2],2)[0,:2]} with Total Eve: {Eve_Rates[-1]} || UE: {np.round(np.mean(avris_env.xyz_loc_UE, axis=0),2)[:2]} with Total Rates: {UE_Rates[-1]} || UAV: {np.round(avris_env.xyz_loc_UAV[0:2],2)} || Total Reward: {(Ep_Rewards[-1]):.2f}")    
+
+    avris_agent = DDPGAgent(
+        state_dim=avris_env.envs[0].state_dim,
+        action_dim=avris_env.envs[0].action_dim,
+        max_episodes=args.max_episodes,
+        h_dims1=512,
+        h_dims2=256,
+        gamma=0.99,
+        lamda=args.lamda_init,
+        capacity=20000,
+        device=args.device
+    )
+
+    Ep_Rewards = []
+    UE_Rates = []
+    Eve_Rates = []
+    iS_LoS_Probs = [] 
+    for episode in range(args.max_episodes):
+        UE_rates = []
+        Eve_rates = []
+        Ep_rewards = []
+        iS_LoS_p = []
+        a_state, _ = avris_env.reset()
+
+        exploration_noise = get_exponential_noise(episode, args.max_episodes)
+
+        if episode > warmup_episodes:
+            avris_agent.actor_scheduler.step(episode)
+            avris_agent.critic1_scheduler.step(episode)
+            avris_agent.critic2_scheduler.step(episode)
+
+        batch_size = linear_increment_minibatches(
+            episode, warmup_episodes,
+            start_batches=128, max_batches=1024, max_ep=args.max_episodes
+        )
+
+        new_lamda = linear_decay_weight_decay(
+            args.lamda_init, episode, args.max_episodes, eta_min=0.0
+        )
+        avris_agent.update_weight_decay(new_lamda)
+
+        time_steps = get_time_steps(
+            episode, warmup_ep=warmup_episodes, start=1000, end=5000, max_ep=args.max_episodes
+        )
+
+        for t in range(time_steps):
+            a_action = avris_agent.select_action(a_state, noise=exploration_noise)
+
+            a_next_state, a_reward, a_done, truncates, _ = avris_env.step(a_action)
+
+            avris_agent.buffer.push_batch(a_state, a_action, a_reward, a_next_state, a_done)
+            avris_agent.train(batch_size=batch_size)
+
+            a_state = a_next_state
+
+            UE_rates.append(np.sum(avris_env.envs[0].bit_rates))
+            Eve_rates.append(np.sum(avris_env.envs[0].eve_rates))
+            Ep_rewards.append(a_reward)
+            
+        UE_Rates.append(np.mean(UE_rates))
+        Eve_Rates.append(np.mean(Eve_rates))
+        Ep_Rewards.append(np.mean(Ep_rewards))
+        iS_LoS_Probs.append(np.mean(np.vstack(avris_env.envs[0].LoS_list), axis=0))
+        
+        logging.info(
+            f"Episode {episode} | "
+            f"E: {np.round(avris_env.envs[0].xyz_loc_Eve[0:2], 2)[0, :2]} "
+            f"Eve: {Eve_Rates[-1]:.2f} | "
+            f"UE: {np.round(np.mean(avris_env.envs[0].xyz_loc_UE, axis=0), 2)[:2]} "
+            f"UE Rate: {UE_Rates[-1]:.2f} | "
+            f"UAV: {np.round(avris_env.envs[0].xyz_loc_UAV[0:2], 2)} | "
+            f"LoS%: {np.round(np.mean(np.vstack(avris_env.envs[0].LoS_list), axis=0), 2)} | "
+            f"Reward: {Ep_Rewards[-1]:.2f}"
+        )
+
+        logging.info(
+            f"Config | lamda={new_lamda:.2e} | noise={exploration_noise:.4f} | "
+            f"steps={time_steps} | BS={batch_size} | "
+            f"actorLR={avris_agent.actor_scheduler.optimizer.param_groups[0]['lr']:.2e} | "
+            f"criticLR={avris_agent.critic1_scheduler.optimizer.param_groups[0]['lr']:.2e}"
+        )
+
+        logging.info("=" * 100)
+    
+    save_metrics(Ep_Rewards, UE_Rates, Eve_Rates, save_dir)
+        
+    plt.plot(Ep_Rewards)
+    plt.savefig(f"Drone_Agent/AVRIS_{np.round(avris_env.envs[0].xyz_loc_UAV[2], 2)}.pdf", bbox_inches='tight')
+    plt.show()
+
+
+if __name__ == "__main__":
+    main()

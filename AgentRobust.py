@@ -158,32 +158,40 @@ class DDPGAgent:
             target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
 
-    # def save_checkpoint(self, filename):
-    #     # Ensure directory exists
-    #     os.makedirs(os.path.dirname(filename), exist_ok=True)
+    def save_checkpoint(self, filename):
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-    #     checkpoint = {
-    #         'actor_state_dict': self.actor.state_dict(),
-    #         'critic_state_dict': self.critic.state_dict(),
-    #         'actor_target_state_dict': self.actor_target.state_dict(),
-    #         'critic_target_state_dict': self.critic_target.state_dict(),
-    #         'actor_optimizer_state_dict': self.actor_optimizer.state_dict(),
-    #         'critic_optimizer_state_dict': self.critic_optimizer.state_dict(),
-    #     }
-    #     torch.save(checkpoint, filename)
-    #     print(f"Checkpoint saved to {filename}")
+        checkpoint = {
+            'actor_state_dict': self.actor.state_dict(),
+            'actor_target_state_dict': self.actor_target.state_dict(),
+            'actor_optimizer_state_dict': self.actor_optimizer.state_dict(),
+            'critic1_state_dict': self.critic1.state_dict(),
+            'critic1_target_state_dict': self.critic1_target.state_dict(),
+            'critic1_optimizer_state_dict': self.critic1_optimizer.state_dict(),
+            'critic2_state_dict': self.critic2.state_dict(),
+            'critic2_target_state_dict': self.critic2_target.state_dict(),
+            'critic2_optimizer_state_dict': self.critic2_optimizer.state_dict(),
+        }
+        torch.save(checkpoint, filename)
+        print(f"Checkpoint saved to {filename}")
 
-    # def load_checkpoint(self, filename):
-    #     if not os.path.exists(filename):
-    #         raise FileNotFoundError(f"Checkpoint file '{filename}' not found.")
-    #     checkpoint = torch.load(filename, map_location=self.device)
+    def load_checkpoint(self, filename):
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f"Checkpoint file '{filename}' not found.")
+        
+        checkpoint = torch.load(filename)
+        self.actor.load_state_dict(checkpoint['actor_state_dict'])
+        self.actor_target.load_state_dict(checkpoint['actor_target_state_dict'])
+        self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
 
-    #     self.actor.load_state_dict(checkpoint['actor_state_dict'])
-    #     self.critic.load_state_dict(checkpoint['critic_state_dict'])
-    #     self.actor_target.load_state_dict(checkpoint['actor_target_state_dict'])
-    #     self.critic_target.load_state_dict(checkpoint['critic_target_state_dict'])
-    #     self.actor_optimizer.load_state_dict(checkpoint['actor_optimizer_state_dict'])
-    #     self.critic_optimizer.load_state_dict(checkpoint['critic_optimizer_state_dict'])
+        self.critic1.load_state_dict(checkpoint['critic1_state_dict'])
+        self.critic1_target.load_state_dict(checkpoint['critic1_target_state_dict'])
+        self.critic1_optimizer.load_state_dict(checkpoint['critic1_optimizer_state_dict'])
 
-    #     print(f"Checkpoint loaded from {filename}")
+        self.critic2.load_state_dict(checkpoint['critic2_state_dict'])
+        self.critic2_target.load_state_dict(checkpoint['critic2_target_state_dict'])
+        self.critic2_optimizer.load_state_dict(checkpoint['critic2_optimizer_state_dict'])
+
+        print(f"Checkpoint loaded from {filename}")
         

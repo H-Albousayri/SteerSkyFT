@@ -1,4 +1,7 @@
 import matplotlib
+import argparse
+import logging
+from datetime import datetime
 import os 
 import random
 import torch
@@ -74,3 +77,40 @@ def set_deterministic(seed: int = 42):
     torch.backends.cudnn.benchmark = False
 
     print(f"[✓] Seeds set and deterministic behavior enforced with seed = {seed}")
+
+
+def setup_logger(save_dir):
+    """Setup logging to console + file."""
+    os.makedirs(save_dir, exist_ok=True)
+    log_file = os.path.join(save_dir, "train.log")
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)s | %(message)s",
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(log_file)
+        ]
+    )
+    return log_file
+
+
+def save_metrics(ep_rewards, ue_rates, eve_rates, save_dir):
+    """Save metrics to .npy and summary .json."""
+    np.save(os.path.join(save_dir, "Ep_Rewards.npy"), np.array(ep_rewards))
+    np.save(os.path.join(save_dir, "UE_Rates.npy"), np.array(ue_rates))
+    np.save(os.path.join(save_dir, "Eve_Rates.npy"), np.array(eve_rates))
+
+    summary = {
+        "mean_reward": float(np.mean(ep_rewards)),
+        "mean_ue_rate": float(np.# The `mean` function in Python is used to calculate the average or
+        # mean value of a list of numbers or an array. It computes the sum of
+        # all the values in the list and then divides it by the total number
+        # of values in the list.
+        mean(ue_rates)),
+        "mean_eve_rate": float(np.mean(eve_rates))
+    }
+    import json
+    with open(os.path.join(save_dir, "summary.json"), "w") as f:
+        json.dump(summary, f, indent=4)
+        
+        
