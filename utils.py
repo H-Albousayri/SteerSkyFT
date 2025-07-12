@@ -37,16 +37,6 @@ matplotlib.rcParams['ytick.labelsize'] = 13  # Y-axis tick font size
 matplotlib.rcParams['legend.fontsize'] = 10  # Legend font size
 matplotlib.rcParams['figure.titlesize'] = 12  # Figure title font size
 
-def make_env(seed):
-    def _init():
-        env = AVRIS(My_BS=M_, Mz_BS=M_, Nx_RIS=N_, Ny_RIS=N_,
-                    num_users=args.num_users,
-                    num_eves=args.num_eves,
-                    train_G=True,
-                    seed=seed,
-                    mode="All")
-        return env
-    return _init
     
 def linear_decay_weight_decay(initial_wd, step, T_max, eta_min=0.0):
     # Linearly decay from initial_wd to eta_min over T_max steps
@@ -105,20 +95,18 @@ def setup_logger(save_dir):
     return log_file
 
 
-def save_metrics(ep_rewards, ue_rates, eve_rates, save_dir):
+def save_metrics(ep_rewards, ue_rates, eve_rates, iS_LoS_Probs, save_dir):
     """Save metrics to .npy and summary .json."""
     np.save(os.path.join(save_dir, "Ep_Rewards.npy"), np.array(ep_rewards))
     np.save(os.path.join(save_dir, "UE_Rates.npy"), np.array(ue_rates))
     np.save(os.path.join(save_dir, "Eve_Rates.npy"), np.array(eve_rates))
-
+    np.save(os.path.join(save_dir, "iS_LoS_Probs.npy"), np.array(iS_LoS_Probs))
+    
     summary = {
-        "mean_reward": float(np.mean(ep_rewards)),
-        "mean_ue_rate": float(np.# The `mean` function in Python is used to calculate the average or
-        # mean value of a list of numbers or an array. It computes the sum of
-        # all the values in the list and then divides it by the total number
-        # of values in the list.
-        mean(ue_rates)),
-        "mean_eve_rate": float(np.mean(eve_rates))
+        "mean_reward": (ep_rewards),
+        "mean_ue_rate": float(np.mean(ue_rates)),
+        "mean_eve_rate": float(np.mean(eve_rates)),
+        "mean_LoS_prob": float(np.mean(iS_LoS_Probs))
     }
     import json
     with open(os.path.join(save_dir, "summary.json"), "w") as f:

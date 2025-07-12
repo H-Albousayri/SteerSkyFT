@@ -4,6 +4,7 @@ from AgentRobust import *
 from AvrisEnv import *
 
 
+
 def main():
     # ----------------------------
     # ARG PARSER
@@ -25,7 +26,16 @@ def main():
 
     set_deterministic(args.seed)
 
-
+    def make_env(seed):
+        def _init():
+            env = AVRIS(My_BS=M_, Mz_BS=M_, Nx_RIS=N_, Ny_RIS=N_,
+                        num_users=args.num_users,
+                        num_eves=args.num_eves,
+                        train_G=True,
+                        seed=seed,
+                        mode="All")
+            return env
+        return _init
 
     avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
     
@@ -39,8 +49,8 @@ def main():
     for arg, val in vars(args).items():
         logging.info(f"{arg}: {val}")
         
-    logging.info(f"{avris_env.envs[0].state_dim}")
-    logging.info(f"{avris_env.envs[0].action_dim}")
+    logging.info(f"state dims: {avris_env.envs[0].state_dim}")
+    logging.info(f"action dims: {avris_env.envs[0].action_dim}")
     logging.info("=============================================")
     
 
@@ -98,21 +108,21 @@ def main():
 
             a_state = a_next_state
 
-            UE_rates.append(np.sum(avris_env.envs[0].bit_rates))
-            Eve_rates.append(np.sum(avris_env.envs[0].eve_rates))
+            UE_rates.append(avris_env.envs[0].bit_rates)
+            Eve_rates.append(avris_env.envs[0].eve_rates)
             Ep_rewards.append(a_reward)
             
-        UE_Rates.append(np.mean(UE_rates))
-        Eve_Rates.append(np.mean(Eve_rates))
+        UE_Rates.append(np.mean(np.vstack(UE_rates), axis=0))
+        Eve_Rates.append(np.mean(np.vstack(Eve_rates), axis=0))
         Ep_Rewards.append(np.mean(Ep_rewards))
         iS_LoS_Probs.append(np.mean(np.vstack(avris_env.envs[0].LoS_list), axis=0))
         
         logging.info(
             f"Episode {episode} | "
             f"E: {np.round(avris_env.envs[0].xyz_loc_Eve[0:2], 2)[0, :2]} "
-            f"Eve: {Eve_Rates[-1]:.2f} | "
+            f"UE Rate: {np.round(UE_Rates[-1],2)} | "
+            f"Eve: {np.round(Eve_Rates[-1],2)} | "
             f"UE: {np.round(np.mean(avris_env.envs[0].xyz_loc_UE, axis=0), 2)[:2]} "
-            f"UE Rate: {UE_Rates[-1]:.2f} | "
             f"UAV: {np.round(avris_env.envs[0].xyz_loc_UAV[0:2], 2)} | "
             f"LoS%: {np.round(np.mean(np.vstack(avris_env.envs[0].LoS_list), axis=0), 2)} | "
             f"Reward: {Ep_Rewards[-1]:.2f}"
@@ -127,11 +137,16 @@ def main():
 
         logging.info("=" * 100)
     
-    save_metrics(Ep_Rewards, UE_Rates, Eve_Rates, save_dir)
+    save_metrics(Ep_Rewards, UE_Rates, Eve_Rates, iS_LoS_Probs, save_dir)
         
     plt.plot(Ep_Rewards)
-    plt.savefig(f"Drone_Agent/AVRIS_{np.round(avris_env.envs[0].xyz_loc_UAV[2], 2)}.pdf", bbox_inches='tight')
-    plt.show()
+    plt.title("Episode Rewards")
+    plt.xlabel("Episode")
+    plt.ylabel("Reward")
+    plt.grid(True)
+    plot_path = os.path.join(save_dir, "reward_curve.pdf")
+    plt.savefig(plot_path, bbox_inches='tight')
+    logging.info(f"Reward curve saved to: {plot_path}")
 
 
 if __name__ == "__main__":
