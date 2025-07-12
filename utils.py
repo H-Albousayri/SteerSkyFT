@@ -10,6 +10,7 @@ import numpy as np
 from cycler import cycler
 from collections import deque
 import matplotlib.pyplot as plt
+from gym.vector import SyncVectorEnv
 
 matplotlib.rcParams['figure.dpi'] = 400
 
@@ -36,7 +37,17 @@ matplotlib.rcParams['ytick.labelsize'] = 13  # Y-axis tick font size
 matplotlib.rcParams['legend.fontsize'] = 10  # Legend font size
 matplotlib.rcParams['figure.titlesize'] = 12  # Figure title font size
 
-
+def make_env(seed):
+    def _init():
+        env = AVRIS(My_BS=M_, Mz_BS=M_, Nx_RIS=N_, Ny_RIS=N_,
+                    num_users=args.num_users,
+                    num_eves=args.num_eves,
+                    train_G=True,
+                    seed=seed,
+                    mode="All")
+        return env
+    return _init
+    
 def linear_decay_weight_decay(initial_wd, step, T_max, eta_min=0.0):
     # Linearly decay from initial_wd to eta_min over T_max steps
     step = min(step, T_max)  # prevent going below eta_min

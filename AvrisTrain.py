@@ -3,8 +3,6 @@ from DroneEnv import *
 from AgentRobust import *
 from AvrisEnv import *
 
-from gym.vector import SyncVectorEnv
-
 
 def main():
     # ----------------------------
@@ -27,16 +25,7 @@ def main():
 
     set_deterministic(args.seed)
 
-    def make_env(seed):
-        def _init():
-            env = AVRIS(My_BS=M_, Mz_BS=M_, Nx_RIS=N_, Ny_RIS=N_,
-                        num_users=args.num_users,
-                        num_eves=args.num_eves,
-                        train_G=True,
-                        seed=seed,
-                        mode="All")
-            return env
-        return _init
+
 
     avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
     
