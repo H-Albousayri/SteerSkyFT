@@ -69,12 +69,14 @@ def main():
     Ep_Rewards = []
     UE_Rates = []
     Eve_Rates = []
-    iS_LoS_Probs = [] 
+    iS_LoS_Probs = []
+    Locs = []
     for episode in range(args.max_episodes):
         UE_rates = []
         Eve_rates = []
         Ep_rewards = []
         iS_LoS_p = []
+        locs = []
         a_state, _ = avris_env.reset()
 
         exploration_noise = get_exponential_noise(episode, args.max_episodes)
@@ -111,7 +113,9 @@ def main():
             UE_rates.append(avris_env.envs[0].bit_rates)
             Eve_rates.append(avris_env.envs[0].eve_rates)
             Ep_rewards.append(a_reward)
+            locs.append(avris_env.envs[0].xyz_loc_UAV[0:2].copy())
             
+        np.save(os.path.join(save_dir, f"Locs_ep:{episode}.npy"), locs)
         UE_Rates.append(np.mean(np.vstack(UE_rates), axis=0))
         Eve_Rates.append(np.mean(np.vstack(Eve_rates), axis=0))
         Ep_Rewards.append(np.mean(Ep_rewards))
@@ -148,6 +152,9 @@ def main():
     plt.savefig(plot_path, bbox_inches='tight')
     logging.info(f"Reward curve saved to: {plot_path}")
 
+    ckpt_path = os.path.join(save_dir, f"model_at_K={args.num_users}_L={args.num_eves}.pth")
+    avris_agent.save_checkpoint(ckpt_path)
+    logging.info(f"Checkpoint saved to: {ckpt_path}")
 
 if __name__ == "__main__":
     main()
