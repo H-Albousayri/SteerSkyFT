@@ -87,9 +87,12 @@ def set_deterministic(seed: int = 42):
 
 
 def setup_logger(save_dir):
-    """Setup logging to console + file."""
     os.makedirs(save_dir, exist_ok=True)
     log_file = os.path.join(save_dir, "train.log")
+
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s | %(levelname)s | %(message)s",

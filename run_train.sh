@@ -7,5 +7,5 @@ python3 AvrisTrain.py \
   --max_episodes 300 \
   --init_steps 500 \
   --init_noise 0.45 \
-  --init_batch 256 \
+  --init_batch 128 \
   --capacity 100000

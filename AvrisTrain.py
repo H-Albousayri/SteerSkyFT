@@ -39,15 +39,14 @@ def main():
             return env
         return _init
         
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     for seed in args.seed:
         set_deterministic(seed)
 
 
         avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
-        
-        
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_dir = f"Drone_Agent/Run_{timestamp}"
+           
+        save_dir = f"Drone_Agent/Run_{timestamp}/seed:{seed}"
         log_file = setup_logger(save_dir)
         logging.info(f"Logging to: {log_file}")
         
@@ -76,7 +75,6 @@ def main():
         UE_Rates = []
         Eve_Rates = []
         iS_LoS_Probs = []
-        Locs = []
         for episode in range(args.max_episodes):
             UE_rates = []
             Eve_rates = []
@@ -162,7 +160,7 @@ def main():
         plt.savefig(plot_path, bbox_inches='tight')
         logging.info(f"Reward curve saved to: {plot_path}")
 
-        ckpt_path = os.path.join(save_dir, f"model_at_K={args.num_users}_L={args.num_eves}.pth")
+        ckpt_path = os.path.join(save_dir, f"model_at_K={args.num_users}_L={args.num_eves}_{seed}.pth")
         avris_agent.save_checkpoint(ckpt_path)
         logging.info(f"Checkpoint saved to: {ckpt_path}")
 
