@@ -64,18 +64,18 @@ class DDPGAgent:
         self.critic1_target.load_state_dict(self.critic1.state_dict())
         self.critic2_target.load_state_dict(self.critic2.state_dict())
 
-        self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=1e-4, weight_decay=lamda)
-        self.critic1_optimizer = optim.Adam(self.critic1.parameters(), lr=1e-3, weight_decay=lamda)
-        self.critic2_optimizer = optim.Adam(self.critic2.parameters(), lr=1e-3, weight_decay=lamda)
+        self.actor_optimizer = optim.AdamW(self.actor.parameters(), lr=5e-4, weight_decay=lamda)
+        self.critic1_optimizer = optim.AdamW(self.critic1.parameters(), lr=5e-3, weight_decay=lamda)
+        self.critic2_optimizer = optim.AdamW(self.critic2.parameters(), lr=5e-3, weight_decay=lamda)
 
         self.actor_scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            self.actor_optimizer, T_max=max_episodes, eta_min=1e-6
+            self.actor_optimizer, T_max=max_episodes, eta_min=1e-5
         )
         self.critic1_scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            self.critic1_optimizer, T_max=max_episodes, eta_min=1e-5
+            self.critic1_optimizer, T_max=max_episodes, eta_min=5e-5
         )
         self.critic2_scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            self.critic2_optimizer, T_max=max_episodes, eta_min=1e-5
+            self.critic2_optimizer, T_max=max_episodes, eta_min=5e-5
         )
 
         self.buffer = ReplayBuffer(capacity)

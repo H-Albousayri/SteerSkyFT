@@ -48,6 +48,12 @@ def get_exponential_noise(episode, total_episodes, initial_noise=0.45, final_noi
     noise = initial_noise * np.exp(decay_rate * episode)
     return max(noise, final_noise)
 
+def get_linear_noise(episode, total_episodes, initial_noise=0.45, final_noise=0.005):
+    if episode >= total_episodes:
+        return final_noise
+    noise = initial_noise - (initial_noise - final_noise) * (episode / total_episodes)
+    return max(noise, final_noise)
+
 def get_time_steps(ep, warmup_ep=100, start=1000, end=10000, max_ep=500):
     if ep <= warmup_ep:
         return start
