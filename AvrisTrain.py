@@ -19,6 +19,7 @@ def main():
     parser.add_argument("--init_steps", type=int, default=1000, help="Init time steps")
     parser.add_argument("--init_batch", type=int, default=128, help="Init batch size for the batch scheduler")
     parser.add_argument("--init_noise", type=float, default=0.45, help="Init noise STD")
+    parser.add_argument("--h_dims", type=int, default=512, help="First layer h_dims")
     parser.add_argument("--max_episodes", type=int, default=300, help="Maximum number of episodes")
     parser.add_argument("--capacity", type=int, default=20000, help="Replay Buffer size")
     parser.add_argument("--seed", type=int, nargs='+', default=[100], help="List of random seeds")
@@ -46,7 +47,7 @@ def main():
 
         avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
            
-        save_dir = f"Drone_Agent/Run_{timestamp}/seed:{seed}"
+        save_dir = f"Drone_Agent/Run_{timestamp}_(M,N)=({args.M},{args.N})/seed:{seed}"
         log_file = setup_logger(save_dir)
         logging.info(f"Logging to: {log_file}")
         
@@ -63,7 +64,7 @@ def main():
             state_dim=avris_env.envs[0].state_dim,
             action_dim=avris_env.envs[0].action_dim,
             max_episodes=args.max_episodes,
-            h_dims1=512,
+            h_dims1=args.h_dims,
             h_dims2=256,
             gamma=0.99,
             lamda=args.lamda_init,
@@ -84,7 +85,8 @@ def main():
             a_state, _ = avris_env.reset()
 
             exploration_noise = get_linear_noise(episode, args.max_episodes, initial_noise=args.init_noise)
-
+            # exploration_noise = get_exponential_noise(episode, args.max_episodes, initial_noise=args.init_noise)
+            
             if episode > warmup_episodes:
                 avris_agent.actor_scheduler.step(episode)
                 avris_agent.critic1_scheduler.step(episode)

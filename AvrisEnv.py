@@ -111,7 +111,7 @@ class AVRIS():
             self.action_dim = self.N + self.M*self.K + 2
             
             self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
-                                self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1
+                                self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2
             )
         
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.action_dim,), dtype=np.float32)
@@ -147,6 +147,7 @@ class AVRIS():
                                     np.angle(self.H_d).reshape(-1)/np.pi,
                                     np.angle(self.H_2_e).reshape(-1)/np.pi,
                                     np.angle(self.H_d_e).reshape(-1)/np.pi,
+                                    self.xyz_loc_UAV[0:2]*1e-3, 
                                     self.BS_UAV_dis*1e-3, 
                                     self.UAV_UE_dis.flatten()*1e-3, 
                                     self.BS_UE_dis.flatten()*1e-3, 
