@@ -50,7 +50,7 @@ class ReplayBuffer:
 class DDPGAgent:
     def __init__(self, state_dim, action_dim, max_episodes=300, 
                  h_dims1=256, h_dims2=256, gamma=0.99, tau=0.005, lamda=0.0,
-                 capacity=1_000_000, device="cpu", policy_noise=0.05, noise_clip=0.5, policy_delay=2):
+                 capacity=1_000_000, device="cpu", policy_noise=0.005, noise_clip=0.5, policy_delay=2):
         self.device = device
 
         self.actor = Actor(state_dim, action_dim, h_dims1, h_dims2).to(device)

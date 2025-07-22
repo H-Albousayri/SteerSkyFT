@@ -15,6 +15,8 @@ def main():
     parser.add_argument("--num_envs", type=int, default=5, help="Number of parallel environments")
     parser.add_argument("--M", type=int, default=16, help="Number of BS elements")
     parser.add_argument("--N", type=int, default=16, help="Number of RIS elements")
+    parser.add_argument("--fixed_eve", action="store_true", help="Whether to keep eve at (K_e, 40)")
+    parser.add_argument("--los", action="store_true", help="Whether to consider Prop. of LoS to be 1 all the time")
     parser.add_argument("--lamda_init", type=float, default=1e-4, help="Initial weight decay")
     parser.add_argument("--init_steps", type=int, default=1000, help="Init time steps")
     parser.add_argument("--init_batch", type=int, default=128, help="Init batch size for the batch scheduler")
@@ -34,6 +36,8 @@ def main():
             env = AVRIS(My_BS=M_, Mz_BS=M_, Nx_RIS=N_, Ny_RIS=N_,
                         num_users=args.num_users,
                         num_eves=args.num_eves,
+                        consider_LoS=args.los,
+                        fixed_eve=args.fixed_eve,
                         train_G=True,
                         seed=seed,
                         mode="All")
@@ -47,7 +51,7 @@ def main():
 
         avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
            
-        save_dir = f"Drone_Agent/Run_{timestamp}_(M,N)=({args.M},{args.N})/seed:{seed}"
+        save_dir = f"Drone_Agent/Run_{timestamp}_(M,N,K,L,FixEv,Ey,PLoS)=({args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{avris_env.envs[0].xyz_loc_Eve[0, 1]},{args.los})/seed:{seed}"
         log_file = setup_logger(save_dir)
         logging.info(f"Logging to: {log_file}")
         

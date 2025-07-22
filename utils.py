@@ -43,10 +43,11 @@ def linear_decay_weight_decay(initial_wd, step, T_max, eta_min=0.0):
     step = min(step, T_max)  # prevent going below eta_min
     return initial_wd - (initial_wd - eta_min) * (step / T_max)
 
-def get_exponential_noise(episode, total_episodes, initial_noise=0.45, final_noise=0.005):
-    decay_rate = np.log(final_noise / initial_noise) / total_episodes
+def get_exponential_noise(episode, total_episodes, initial_noise=0.5, final_noise=0.005, slope=0.5):
+    decay_rate = slope * np.log(final_noise / initial_noise) / total_episodes
     noise = initial_noise * np.exp(decay_rate * episode)
     return max(noise, final_noise)
+
 
 def get_linear_noise(episode, total_episodes, initial_noise=0.45, final_noise=0.005):
     if episode >= total_episodes:

@@ -2,7 +2,8 @@ import numpy as np
 import random
 from gym import spaces
 class AVRIS():
-    def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, train_G=True, seed=None, mode="Beamforming"):
+    def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, consider_LoS=True,
+                 fixed_eve=False, train_G=True, seed=None, mode="Beamforming"):
         super(AVRIS, self).__init__()
         
         self.seed(seed)
@@ -19,6 +20,7 @@ class AVRIS():
         self.K = num_users
         self.K_e = num_eves
 
+        self.fixed_Eve = fixed_eve
         self.train_G = train_G
         self.mode = mode
         ###########################  
@@ -34,7 +36,7 @@ class AVRIS():
         ###########################
         
         self.direction = 0 
-        self.consider_LoS = True
+        self.consider_LoS = consider_LoS
         self.spacing = 10
 
         ###########################    
@@ -66,8 +68,12 @@ class AVRIS():
     
         ###########################
         self.xyz_loc_Eve = np.zeros((self.K_e, 3))
-        self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
-        # self.xyz_loc_Eve = np.array([[60., 60., 0.]])
+        
+        if not self.fixed_Eve:
+            self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
+        else:
+            self.xyz_loc_Eve[:, 0] = np.arange(self.K_e) * self.spacing
+            self.xyz_loc_Eve[:, 1] =  90
         
         self.xyz_loc_UE = np.zeros((self.K, 3))
         self.xyz_loc_UE[:, 0] = np.arange(self.K) * self.spacing
@@ -214,7 +220,9 @@ class AVRIS():
     def reset(self):
         self.LoS_list = []
         
-        self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
+        if not self.fixed_Eve:
+            self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
+
         self.xyz_loc_UAV[:2] = np.random.uniform(100, 200, size=(2,))
         
         self.Phi = np.eye(self.N, dtype=np.complex128) * np.exp(1j*np.pi* np.random.uniform(-1, 1, size=self.N))
@@ -496,7 +504,9 @@ class AVRIS():
         
         reward = self.reward_scale* secrecy_rate
 
-        self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
+        if not self.fixed_Eve:
+            self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
+            
         delta_BS_Eve = self.xyz_loc_Eve - self.xyz_loc_BS
         self.BS_Eve_dis = np.linalg.norm(delta_BS_Eve, axis=1)
         delta_UAV_Eve = self.xyz_loc_Eve - self.xyz_loc_UAV
