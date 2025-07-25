@@ -2,7 +2,7 @@ import numpy as np
 import random
 from gym import spaces
 class AVRIS():
-    def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, consider_LoS=True,
+    def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, consider_LoS=True, PL_ratio=2.0, UE_spacing=20,
                  fixed_eve=False, train_G=True, seed=None, mode="Beamforming"):
         super(AVRIS, self).__init__()
         
@@ -31,13 +31,13 @@ class AVRIS():
         
         self.Kai = 10000 #for LoS vs NLoS # 40dB value
         self.PLexponent = 4.0
-        self.PLexponent_d = 2* self.PLexponent
+        self.PLexponent_d = PL_ratio* self.PLexponent
         
         ###########################
         
         self.direction = 0 
         self.consider_LoS = consider_LoS
-        self.spacing = 10
+        self.spacing = UE_spacing
 
         ###########################    
         
@@ -59,7 +59,7 @@ class AVRIS():
         
         ###########################
         
-        self.xyz_loc_UAV = np.array([60., 10., 50.])
+        self.xyz_loc_UAV = np.array([60., 10., 70.])
         self.xyz_loc_UAV[0:2] = np.random.uniform(20, 70, size=2)
         
         ###########################
@@ -69,8 +69,10 @@ class AVRIS():
         ###########################
         self.xyz_loc_Eve = np.zeros((self.K_e, 3))
         
+        self.x_eve_boundry = -10
+        self.y_eve_boundry = 80
         if not self.fixed_Eve:
-            self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
+            self.xyz_loc_Eve[:, 0:2] = np.random.uniform(self.x_eve_boundry, self.y_eve_boundry, (self.K_e, 2))
         else:
             self.xyz_loc_Eve[:, 0] = np.arange(self.K_e) * self.spacing
             self.xyz_loc_Eve[:, 1] =  90
@@ -221,7 +223,7 @@ class AVRIS():
         self.LoS_list = []
         
         if not self.fixed_Eve:
-            self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
+            self.xyz_loc_Eve[:, 0:2] = np.random.uniform(self.x_eve_boundry, self.y_eve_boundry, (self.K_e, 2))
 
         self.xyz_loc_UAV[:2] = np.random.uniform(100, 200, size=(2,))
         
@@ -255,7 +257,7 @@ class AVRIS():
         a_r_RIS = self.get_steering_vector_RIS(delta_BS_UAV, self.BS_UAV_dis)
         
         H1_los = a_r_RIS @ a_t_BS.conj().T
-        H1_rayleigh = np.random.normal(0, (1/(np.sqrt(2)**2)), size=self.H_1.shape) + 1j * np.random.normal(0, (1/(np.sqrt(2)**2)), size=self.H_1.shape)
+        H1_rayleigh = np.random.normal(0, 1/(np.sqrt(2)), size=self.H_1.shape) + 1j * np.random.normal(0, 1/(np.sqrt(2)), size=self.H_1.shape)
         
         if self.channel_model == "rician":
             self.H_1 = (np.sqrt(self.B_0 * self.BS_UAV_dis**(-2))) * ((np.sqrt((self.Kai)/(self.Kai+1)) * H1_los) + (np.sqrt((1)/(self.Kai+1)) * H1_rayleigh))
@@ -273,11 +275,11 @@ class AVRIS():
         H2_los = a_t_RIS
         H2_los_e = a_t_RIS_e
         
-        H2_rayleigh = (np.random.normal(0, (1/(np.sqrt(2)**2)), size=self.H_2.shape) +
-                       1j * np.random.normal(0, (1/(np.sqrt(2)**2)), size=self.H_2.shape))
+        H2_rayleigh = (np.random.normal(0, 1/(np.sqrt(2)), size=self.H_2.shape) +
+                       1j * np.random.normal(0, 1/(np.sqrt(2)), size=self.H_2.shape))
         
-        H2_rayleigh_e = (np.random.normal(0, (1/(np.sqrt(2)**2)), size=H2_los_e.shape) +
-                       1j * np.random.normal(0, (1/(np.sqrt(2)**2)), size=H2_los_e.shape))       
+        H2_rayleigh_e = (np.random.normal(0, 1/(np.sqrt(2)), size=H2_los_e.shape) +
+                       1j * np.random.normal(0, 1/(np.sqrt(2)), size=H2_los_e.shape))       
         
         if self.channel_model == "rician":
             self.H_2.T[self.is_LoS] = ((np.sqrt(self.B_0 * self.UAV_UE_dis**(-2))) * 
@@ -414,7 +416,7 @@ class AVRIS():
         a_r_RIS = self.get_steering_vector_RIS(delta_BS_UAV, self.BS_UAV_dis)
         
         H1_los = a_r_RIS @ a_t_BS.conj().T
-        H1_rayleigh = np.random.normal(0, (1/(np.sqrt(2)**2)), size=self.H_1.shape) + 1j * np.random.normal(0, (1/(np.sqrt(2)**2)), size=self.H_1.shape)
+        H1_rayleigh = np.random.normal(0, 1/(np.sqrt(2)), size=self.H_1.shape) + 1j * np.random.normal(0, 1/(np.sqrt(2)), size=self.H_1.shape)
         
         if self.channel_model == "rician":
             self.H_1 = (np.sqrt(self.B_0 * self.BS_UAV_dis**(-2))) * ((np.sqrt((self.Kai)/(self.Kai+1)) * H1_los) + (np.sqrt((1)/(self.Kai+1)) * H1_rayleigh))
@@ -432,11 +434,11 @@ class AVRIS():
         H2_los = a_t_RIS
         H2_los_e = a_t_RIS_e
         
-        H2_rayleigh = (np.random.normal(0, (1/(np.sqrt(2)**2)), size=self.H_2.shape) +
-                       1j * np.random.normal(0, (1/(np.sqrt(2)**2)), size=self.H_2.shape))
+        H2_rayleigh = (np.random.normal(0, 1/(np.sqrt(2)), size=self.H_2.shape) +
+                       1j * np.random.normal(0, 1/(np.sqrt(2)), size=self.H_2.shape))
         
-        H2_rayleigh_e = (np.random.normal(0, (1/(np.sqrt(2)**2)), size=H2_los_e.shape) +
-                       1j * np.random.normal(0, (1/(np.sqrt(2)**2)), size=H2_los_e.shape))       
+        H2_rayleigh_e = (np.random.normal(0, 1/(np.sqrt(2)), size=H2_los_e.shape) +
+                       1j * np.random.normal(0, 1/(np.sqrt(2)), size=H2_los_e.shape))       
         
         if self.channel_model == "rician":
             self.H_2.T[self.is_LoS] = ((np.sqrt(self.B_0 * self.UAV_UE_dis**(-2))) * 
@@ -505,7 +507,7 @@ class AVRIS():
         reward = self.reward_scale* secrecy_rate
 
         if not self.fixed_Eve:
-            self.xyz_loc_Eve[:, 0:2] = np.random.uniform(20, 70, (self.K_e, 2))
+            self.xyz_loc_Eve[:, 0:2] = np.random.uniform(self.x_eve_boundry, self.y_eve_boundry, (self.K_e, 2))
             
         delta_BS_Eve = self.xyz_loc_Eve - self.xyz_loc_BS
         self.BS_Eve_dis = np.linalg.norm(delta_BS_Eve, axis=1)
@@ -514,8 +516,8 @@ class AVRIS():
         a_t_RIS_e = self.get_steering_vector_RIS(delta_UAV_Eve, self.UAV_Eve_dis, self.K_e)
         
         H2_los_e = a_t_RIS_e
-        H2_rayleigh_e = (np.random.normal(0, (1/(np.sqrt(2)**2)), size=H2_los_e.shape) +
-                       1j * np.random.normal(0, (1/(np.sqrt(2)**2)), size=H2_los_e.shape))       
+        H2_rayleigh_e = (np.random.normal(0, 1/(np.sqrt(2)), size=H2_los_e.shape) +
+                       1j * np.random.normal(0, 1/(np.sqrt(2)), size=H2_los_e.shape))       
         
         if self.channel_model == "rician":
             self.H_2_e.T[self.is_LoS_e] = ((np.sqrt(self.B_0 * self.UAV_Eve_dis**(-2))) * 

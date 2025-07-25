@@ -22,6 +22,8 @@ def main():
     parser.add_argument("--init_batch", type=int, default=128, help="Init batch size for the batch scheduler")
     parser.add_argument("--init_noise", type=float, default=0.45, help="Init noise STD")
     parser.add_argument("--h_dims", type=int, default=512, help="First layer h_dims")
+    parser.add_argument("--PL_ratio", type=float, default=2.0, help="Ratio between direct channels PL and reflected channels")
+    parser.add_argument("--UE_spacing", type=float, default=10, help="X axis spacing between UE")
     parser.add_argument("--max_episodes", type=int, default=300, help="Maximum number of episodes")
     parser.add_argument("--capacity", type=int, default=20000, help="Replay Buffer size")
     parser.add_argument("--seed", type=int, nargs='+', default=[100], help="List of random seeds")
@@ -31,6 +33,7 @@ def main():
     M_, N_ = int(np.sqrt(args.M)), int(np.sqrt(args.N))
     warmup_episodes = args.max_episodes // 6
     
+    
     def make_env(seed):
         def _init():
             env = AVRIS(My_BS=M_, Mz_BS=M_, Nx_RIS=N_, Ny_RIS=N_,
@@ -38,6 +41,8 @@ def main():
                         num_eves=args.num_eves,
                         consider_LoS=args.los,
                         fixed_eve=args.fixed_eve,
+                        PL_ratio=args.PL_ratio,
+                        UE_spacing=args.UE_spacing,
                         train_G=True,
                         seed=seed,
                         mode="All")
@@ -51,7 +56,7 @@ def main():
 
         avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
            
-        save_dir = f"Drone_Agent/Run_DDPG_ours_{timestamp}_(M,N,K,L,FixEv,Ey,PLoS)=({args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{avris_env.envs[0].xyz_loc_Eve[0, 1]},{args.los})/seed:{seed}"
+        save_dir = f"Drone_Agent/Run_DDPG__{timestamp}_(M,N,K,L,FixEv,Ey,PLoS,PL)=({args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{np.round(avris_env.envs[0].xyz_loc_Eve[0, 1],2)},{args.los},{args.PL_ratio})/seed:{seed}"
         log_file = setup_logger(save_dir)
         logging.info(f"Logging to: {log_file}")
         
@@ -91,23 +96,32 @@ def main():
             exploration_noise = get_linear_noise(episode, args.max_episodes, initial_noise=args.init_noise)
             # exploration_noise = get_exponential_noise(episode, args.max_episodes, initial_noise=args.init_noise)
             
-            if episode > warmup_episodes:
-                avris_agent.actor_scheduler.step(episode)
-                avris_agent.critic_scheduler.step(episode)
+            # if episode > warmup_episodes:
+            #     avris_agent.actor_scheduler.step(episode)
+            #     avris_agent.critic_scheduler.step(episode)
 
-            batch_size = linear_increment_minibatches(
-                episode, warmup_episodes,
-                start_batches=args.init_batch, max_batches=1024, max_ep=args.max_episodes
-            )
+            # batch_size = linear_increment_minibatches(
+            #     episode, warmup_episodes,
+            #     start_batches=args.init_batch, max_batches=1024, max_ep=args.max_episodes
+            # )
 
-            new_lamda = linear_decay_weight_decay(
-                args.lamda_init, episode, args.max_episodes, eta_min=0.0
-            )
-            avris_agent.update_weight_decay(new_lamda)
+            # new_lamda = linear_decay_weight_decay(
+            #     args.lamda_init, episode, args.max_episodes, eta_min=0.0
+            # )
+            # avris_agent.update_weight_decay(new_lamda)
 
-            time_steps = get_time_steps(
-                episode, warmup_ep=warmup_episodes, start=args.init_steps, end=5000, max_ep=args.max_episodes
-            )
+            # time_steps = get_time_steps(
+            #     episode, warmup_ep=warmup_episodes, start=args.init_steps, end=5000, max_ep=args.max_episodes
+            # )
+
+            batch_size = args.init_batch
+
+            new_lamda = args.lamda_init
+            
+            # avris_agent.update_weight_decay(new_lamda)
+
+            time_steps = 5000
+            
 
             for t in range(time_steps):
                 a_action = avris_agent.select_action(a_state, noise=exploration_noise)

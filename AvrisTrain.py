@@ -22,6 +22,8 @@ def main():
     parser.add_argument("--init_batch", type=int, default=128, help="Init batch size for the batch scheduler")
     parser.add_argument("--init_noise", type=float, default=0.45, help="Init noise STD")
     parser.add_argument("--h_dims", type=int, default=512, help="First layer h_dims")
+    parser.add_argument("--PL_ratio", type=float, default=2.0, help="Ratio between direct channels PL and reflected channels")
+    parser.add_argument("--UE_spacing", type=float, default=10, help="X axis spacing between UE")
     parser.add_argument("--max_episodes", type=int, default=300, help="Maximum number of episodes")
     parser.add_argument("--capacity", type=int, default=20000, help="Replay Buffer size")
     parser.add_argument("--seed", type=int, nargs='+', default=[100], help="List of random seeds")
@@ -38,6 +40,8 @@ def main():
                         num_eves=args.num_eves,
                         consider_LoS=args.los,
                         fixed_eve=args.fixed_eve,
+                        PL_ratio=args.PL_ratio,
+                        UE_spacing=args.UE_spacing,
                         train_G=True,
                         seed=seed,
                         mode="All")
@@ -51,7 +55,7 @@ def main():
 
         avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
            
-        save_dir = f"Drone_Agent/Run_{timestamp}_(M,N,K,L,FixEv,Ey,PLoS)=({args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{avris_env.envs[0].xyz_loc_Eve[0, 1]},{args.los})/seed:{seed}"
+        save_dir = f"Drone_Agent/Run_{timestamp}_(M,N,K,L,FixEv,Ey,PLoS,PL_r,UE_spacing)=({args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{np.round(avris_env.envs[0].xyz_loc_Eve[0, 1],2)},{args.los},{args.PL_ratio},{args.UE_spacing})/seed:{seed}"
         log_file = setup_logger(save_dir)
         logging.info(f"Logging to: {log_file}")
         
