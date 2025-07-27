@@ -1,6 +1,6 @@
 from utils import *
 from DroneEnv import *
-from AgentRobust import *
+from Agent import *
 from AvrisEnv import *
 
 
@@ -9,7 +9,7 @@ def main():
     # ----------------------------
     parser = argparse.ArgumentParser(fromfile_prefix_chars='@', description="AVRIS DDPG Training")
     parser.add_argument("--num_users", type=int, default=3, help="Number of legitimate users")
-    parser.add_argument("--num_eves", type=int, default=1, help="Number of eavesdroppers")
+    parser.add_argument("--num_eves", type=int, default=2, help="Number of eavesdroppers")
     parser.add_argument("--num_envs", type=int, default=5, help="Number of parallel environments")
     parser.add_argument("--M", type=int, default=16, help="Number of BS elements")
     parser.add_argument("--N", type=int, default=16, help="Number of RIS elements")
@@ -18,18 +18,20 @@ def main():
     parser.add_argument("--lamda_init", type=float, default=1e-4, help="Initial weight decay")
     parser.add_argument("--init_steps", type=int, default=1000, help="Init time steps")
     parser.add_argument("--init_batch", type=int, default=128, help="Init batch size for the batch scheduler")
-    parser.add_argument("--init_noise", type=float, default=0.45, help="Init noise STD")
-    parser.add_argument("--h_dims", type=int, default=512, help="First layer h_dims")
+    parser.add_argument("--init_noise", type=float, default=0.4, help="Init noise STD")
+    parser.add_argument("--h_dims", type=int, default=256, help="First layer h_dims")
     parser.add_argument("--PL_ratio", type=float, default=2.0, help="Ratio between direct channels PL and reflected channels")
     parser.add_argument("--UE_spacing", type=float, default=10, help="X axis spacing between UE")
+    parser.add_argument("--UAV_height", type=float, default=50, help="UAV z position")
     parser.add_argument("--max_episodes", type=int, default=1, help="Maximum number of episodes")
+    parser.add_argument("--warmup_episodes", type=int, default=50, help="When to start some schedulers")
     parser.add_argument("--capacity", type=int, default=20000, help="Replay Buffer size")
     parser.add_argument("--seed", type=int, nargs='+', default=[100], help="List of random seeds")
     parser.add_argument("--device", type=str, default="cuda", help="Device: cuda or cpu")
     args = parser.parse_args()
 
     M_, N_ = int(np.sqrt(args.M)), int(np.sqrt(args.N))
-    warmup_episodes = args.max_episodes // 6
+    warmup_episodes = args.warmup_episodes
     
     time_steps = 200
     def make_env(seed):
@@ -41,6 +43,7 @@ def main():
                         fixed_eve=args.fixed_eve,
                         PL_ratio=args.PL_ratio,
                         UE_spacing=args.UE_spacing,
+                        UAV_height = args.UAV_height,
                         train_G=True,
                         seed=seed,
                         mode="All")
@@ -52,10 +55,10 @@ def main():
         set_deterministic(seed)
 
         
-        avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
+        avris_env = SyncVectorEnv([make_env(seed=i+50) for i in range(args.num_envs)])
            
-        folder_dir = "Run_20250724_123721_(M,N,K,L,FixEv,Ey,PLoS,PL_r,UE_spacing)=(16,16,3,1,False,39.04,True,2.0)"
-        model_dir = "model_at_K=3_L=1_100.pth"
+        folder_dir = "Run_DDPG__20250725_124150_(M,N,K,L,FixEv,Ey,PLoS,PL,UAVz)=(16,16,3,2,False,39.04,True,2.0,50.0)"
+        model_dir = "model_at_K=3_L=2_100.pth"
         load_dir = f"Drone_Agent/{folder_dir}/seed:{seed}"
         
         avris_agent = DDPGAgent(
@@ -87,7 +90,7 @@ def main():
                 a_action = avris_agent.select_action(a_state, noise=args.init_noise)
 
                 a_next_state, a_reward, a_done, truncates, _ = avris_env.step(a_action)
-                print(f"Ep {episode} - Time {t} : UE=>{np.round([avris_env.envs[i].xyz_loc_UAV[0:2] for i in range(args.num_envs)],2)}, R={a_reward}")
+                print(f"Ep {episode} - Time {t} : UAV=>{np.round([avris_env.envs[i].xyz_loc_UAV[0:2] for i in range(args.num_envs)],2)}, R={a_reward}")
                 a_state = a_next_state
 
                 UE_rates.append(avris_env.envs[0].bit_rates)
@@ -101,10 +104,10 @@ def main():
             Ep_Rewards.append(np.mean(Ep_rewards))
             iS_LoS_Probs.append(np.mean(np.vstack(avris_env.envs[0].LoS_list), axis=0))
             
-        save_dir = "../SteerSkyPlotting/Trajectory"
+        save_dir = "../SteerSkyPlotting/Trajectory/ready"
         if os.path.exists(save_dir):
             print(f"Saved at {save_dir}")
-            np.save(f"{save_dir}/Locs_with_noise={args.init_noise}", locs)
+            np.save(f"{save_dir}/Locs_with_noise_ddpg={args.init_noise}", locs)
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,6 @@
 from utils import *
 from DroneEnv import *
-from Agent import *
+from AgentRobust import *
 from AvrisEnv import *
 
 
@@ -24,14 +24,16 @@ def main():
     parser.add_argument("--h_dims", type=int, default=512, help="First layer h_dims")
     parser.add_argument("--PL_ratio", type=float, default=2.0, help="Ratio between direct channels PL and reflected channels")
     parser.add_argument("--UE_spacing", type=float, default=10, help="X axis spacing between UE")
+    parser.add_argument("--UAV_height", type=float, default=50, help="UAV z position")
     parser.add_argument("--max_episodes", type=int, default=300, help="Maximum number of episodes")
+    parser.add_argument("--warmup_episodes", type=int, default=50, help="When to start some schedulers")
     parser.add_argument("--capacity", type=int, default=20000, help="Replay Buffer size")
     parser.add_argument("--seed", type=int, nargs='+', default=[100], help="List of random seeds")
     parser.add_argument("--device", type=str, default="cuda", help="Device: cuda or cpu")
     args = parser.parse_args()
 
     M_, N_ = int(np.sqrt(args.M)), int(np.sqrt(args.N))
-    warmup_episodes = args.max_episodes // 6
+    warmup_episodes = args.warmup_episodes
     
     
     def make_env(seed):
@@ -43,6 +45,7 @@ def main():
                         fixed_eve=args.fixed_eve,
                         PL_ratio=args.PL_ratio,
                         UE_spacing=args.UE_spacing,
+                        UAV_height = args.UAV_height,
                         train_G=True,
                         seed=seed,
                         mode="All")
@@ -56,7 +59,7 @@ def main():
 
         avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
            
-        save_dir = f"Drone_Agent/Run_DDPG__{timestamp}_(M,N,K,L,FixEv,Ey,PLoS,PL)=({args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{np.round(avris_env.envs[0].xyz_loc_Eve[0, 1],2)},{args.los},{args.PL_ratio})/seed:{seed}"
+        save_dir = f"Drone_Agent/Run_TD3__{timestamp}_(M,N,K,L,FixEv,Ey,PLoS,PL,UAVz)=({args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{np.round(avris_env.envs[0].xyz_loc_Eve[0, 1],2)},{args.los},{args.PL_ratio},{args.UAV_height})/seed:{seed}"
         log_file = setup_logger(save_dir)
         logging.info(f"Logging to: {log_file}")
         
@@ -163,7 +166,7 @@ def main():
                 f"Config | lamda={new_lamda:.2e} | noise={exploration_noise:.4f} | "
                 f"steps={time_steps} | BS={batch_size} | "
                 f"actorLR={avris_agent.actor_scheduler.optimizer.param_groups[0]['lr']:.2e} | "
-                f"criticLR={avris_agent.critic_scheduler.optimizer.param_groups[0]['lr']:.2e}"
+                f"criticLR={avris_agent.critic1_scheduler.optimizer.param_groups[0]['lr']:.2e}"
             )
 
             logging.info("=" * 100)

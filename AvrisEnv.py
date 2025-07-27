@@ -2,7 +2,7 @@ import numpy as np
 import random
 from gym import spaces
 class AVRIS():
-    def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, consider_LoS=True, PL_ratio=2.0, UE_spacing=20,
+    def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, consider_LoS=True, PL_ratio=2.0, UE_spacing=20, UAV_height=50,
                  fixed_eve=False, train_G=True, seed=None, mode="Beamforming"):
         super(AVRIS, self).__init__()
         
@@ -59,7 +59,8 @@ class AVRIS():
         
         ###########################
         
-        self.xyz_loc_UAV = np.array([60., 10., 70.])
+        self.UAV_height = UAV_height
+        self.xyz_loc_UAV = np.array([60., 10., self.UAV_height])
         self.xyz_loc_UAV[0:2] = np.random.uniform(20, 70, size=2)
         
         ###########################
