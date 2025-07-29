@@ -1,10 +1,10 @@
 #!/bin/bash
 
 python3 AvrisTrain.py \
-  --num_users 5 \
+  --num_users 3 \
   --num_eves 2 \
   --num_envs 5 \
-  --M 16 \
+  --M 9 \
   --N 16 \
   --seed 100 200 300 \
   --max_episodes 300 \
@@ -14,8 +14,10 @@ python3 AvrisTrain.py \
   --PL_ratio 2.0 \
   --UE_spacing 20 \
   --UAV_height 50 \
+  --state_setup Angle \
+  --reward_setup SNIR+ \
   --los \
   --h_dims 512 \
-  --init_batch 256 \
+  --init_batch 128 \
   --last_batch 512 \
   --capacity 100000

@@ -26,6 +26,8 @@ def main():
     parser.add_argument("--PL_ratio", type=float, default=2.0, help="Ratio between direct channels PL and reflected channels")
     parser.add_argument("--UE_spacing", type=float, default=10, help="X axis spacing between UE")
     parser.add_argument("--UAV_height", type=float, default=50, help="UAV z position")
+    parser.add_argument("--state_setup", type=str, choices=["Angle", "Angle_r", "Angle+", "Angle++", "ReIm"], help="state representation")
+    parser.add_argument("--reward_setup", type=str, choices=["rate", "SNIR", "SNIR+"], help="reward representation")
     parser.add_argument("--max_episodes", type=int, default=300, help="Maximum number of episodes")
     parser.add_argument("--warmup_episodes", type=int, default=50, help="When to start some schedulers")
     parser.add_argument("--capacity", type=int, default=20000, help="Replay Buffer size")
@@ -45,7 +47,9 @@ def main():
                         fixed_eve=args.fixed_eve,
                         PL_ratio=args.PL_ratio,
                         UE_spacing=args.UE_spacing,
-                        UAV_height = args.UAV_height,
+                        UAV_height=args.UAV_height,
+                        state_setup=args.state_setup,
+                        reward_setup=args.reward_setup,
                         train_G=True,
                         seed=seed,
                         mode="All")
@@ -59,7 +63,7 @@ def main():
 
         avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
            
-        save_dir = f"Drone_Agent/Run_{timestamp}_(M,N,K,L,FixEv,Ey,PLoS,PL_r,UE_spacing,UAVz)=({args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{np.round(avris_env.envs[0].xyz_loc_Eve[0, 1],2)},{args.los},{args.PL_ratio},{args.UE_spacing},{args.UAV_height})/seed:{seed}"
+        save_dir = f"Drone_Agent/Run_{timestamp}_(M,N,K,L,FixEv,Ey,PLoS,PL_r,UE_spacing,UAVz,SU,R)=({args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{np.round(avris_env.envs[0].xyz_loc_Eve[0, 1],2)},{args.los},{args.PL_ratio},{args.UE_spacing},{args.UAV_height},{args.state_setup},{args.reward_setup})/seed:{seed}"
         log_file = setup_logger(save_dir)
         logging.info(f"Logging to: {log_file}")
         

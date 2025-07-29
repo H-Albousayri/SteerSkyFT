@@ -3,8 +3,11 @@ import random
 from gym import spaces
 class AVRIS():
     def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, consider_LoS=True, PL_ratio=2.0, UE_spacing=20, UAV_height=50,
-                 fixed_eve=False, train_G=True, seed=None, mode="Beamforming"):
+                 state_setup="Angle", reward_setup="rate",fixed_eve=False, train_G=True, seed=None, mode="Beamforming"):
         super(AVRIS, self).__init__()
+        
+        self.state_setup = state_setup
+        self.reward_setup = reward_setup
         
         self.seed(seed)
         self.metadata = {'render.modes': []} # For parallel training
@@ -119,10 +122,29 @@ class AVRIS():
         elif self.mode == "All":
             self.action_dim = self.N + self.M*self.K + 2
             
-            self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
-                                self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2
-            )
-        
+            if self.state_setup == "Angle":
+                self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
+                                    self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2
+                )
+            
+            if self.state_setup == "Angle_r":
+                self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
+                                    self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2 + 1
+                )
+                
+            if self.state_setup == "Angle+":
+                self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
+                                    self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2*(1+self.K_e)
+                )
+            if self.state_setup == "Angle++":
+                self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
+                                    self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2*(1+self.K_e) + 1
+                )
+            elif self.state_setup == "ReIm":
+                self.state_dim = (2*self.N * self.M +  2*self.N * self.K + 2*self.M * self.K +
+                                    2*self.M * self.K_e + 2*self.N * self.K_e + 2
+                )
+                
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.action_dim,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.state_dim,), dtype=np.float32)
         
@@ -150,8 +172,9 @@ class AVRIS():
                                     np.angle(self.H_d_e).reshape(-1)/np.pi
             ])
             
-        if self.mode == "All":   
-            return np.hstack([np.angle(self.H_1).reshape(-1)/np.pi,
+        if self.mode == "All":
+            if self.state_setup == "Angle":
+                return np.hstack([np.angle(self.H_1).reshape(-1)/np.pi,
                                     np.angle(self.H_2).reshape(-1)/np.pi,
                                     np.angle(self.H_d).reshape(-1)/np.pi,
                                     np.angle(self.H_2_e).reshape(-1)/np.pi,
@@ -162,8 +185,69 @@ class AVRIS():
                                     self.BS_UE_dis.flatten()*1e-3, 
                                     self.UAV_Eve_dis.flatten()*1e-3,
                                     self.BS_Eve_dis.flatten()*1e-3
-                                    
-            ])
+                                
+                ])
+                
+            if self.state_setup == "Angle_r":
+                return np.hstack([np.angle(self.H_1).reshape(-1)/np.pi,
+                                    np.angle(self.H_2).reshape(-1)/np.pi,
+                                    np.angle(self.H_d).reshape(-1)/np.pi,
+                                    np.angle(self.H_2_e).reshape(-1)/np.pi,
+                                    np.angle(self.H_d_e).reshape(-1)/np.pi,
+                                    self.xyz_loc_UAV[0:2]*1e-3, 
+                                    self.BS_UAV_dis*1e-3, 
+                                    self.UAV_UE_dis.flatten()*1e-3, 
+                                    self.BS_UE_dis.flatten()*1e-3, 
+                                    self.UAV_Eve_dis.flatten()*1e-3,
+                                    self.BS_Eve_dis.flatten()*1e-3,
+                                    np.sum(self.bit_rates)*1e-3
+                ])
+                
+            elif self.state_setup == "Angle+":
+                return np.hstack([np.angle(self.H_1).reshape(-1)/np.pi,
+                                    np.angle(self.H_2).reshape(-1)/np.pi,
+                                    np.angle(self.H_d).reshape(-1)/np.pi,
+                                    np.angle(self.H_2_e).reshape(-1)/np.pi,
+                                    np.angle(self.H_d_e).reshape(-1)/np.pi,
+                                    self.xyz_loc_UAV[0:2]*1e-3, 
+                                    self.xyz_loc_Eve[:,0:2].reshape(-1)*1e-3, 
+                                    self.BS_UAV_dis*1e-3, 
+                                    self.UAV_UE_dis.flatten()*1e-3, 
+                                    self.BS_UE_dis.flatten()*1e-3, 
+                                    self.UAV_Eve_dis.flatten()*1e-3,
+                                    self.BS_Eve_dis.flatten()*1e-3
+                                
+                ])
+                
+            elif self.state_setup == "Angle++":
+                return np.hstack([np.angle(self.H_1).reshape(-1)/np.pi,
+                                    np.angle(self.H_2).reshape(-1)/np.pi,
+                                    np.angle(self.H_d).reshape(-1)/np.pi,
+                                    np.angle(self.H_2_e).reshape(-1)/np.pi,
+                                    np.angle(self.H_d_e).reshape(-1)/np.pi,
+                                    self.xyz_loc_UAV[0:2]*1e-3, 
+                                    self.xyz_loc_Eve[:,0:2].reshape(-1)*1e-3, 
+                                    self.BS_UAV_dis*1e-3, 
+                                    self.UAV_UE_dis.flatten()*1e-3, 
+                                    self.BS_UE_dis.flatten()*1e-3, 
+                                    self.UAV_Eve_dis.flatten()*1e-3,
+                                    self.BS_Eve_dis.flatten()*1e-3,
+                                    np.sum(self.bit_rates)*1e-3
+                ])
+                
+            elif self.state_setup == "ReIm":
+                return np.hstack([np.real(self.H_1).reshape(-1),
+                                  np.imag(self.H_1).reshape(-1),
+                                  np.real(self.H_2).reshape(-1),
+                                  np.imag(self.H_2).reshape(-1),
+                                  np.real(self.H_d).reshape(-1),
+                                  np.imag(self.H_d).reshape(-1),
+                                  np.real(self.H_2_e).reshape(-1),
+                                  np.imag(self.H_2_e).reshape(-1),
+                                  np.real(self.H_d_e).reshape(-1),
+                                  np.imag(self.H_d_e).reshape(-1),
+                                  self.xyz_loc_UAV[0:2]*1e-3
+                ])
             
         elif self.mode == "Move":
             return np.concatenate([self.xyz_loc_UAV, (self.xyz_loc_UE - self.xyz_loc_UAV).flatten()])
@@ -323,7 +407,7 @@ class AVRIS():
         #####################################################
 
         if self.train_G:
-           self.G = np.ones([self.M, self.K], dtype=np.complex128) / np.sqrt(self.M)
+            self.G = np.ones([self.M, self.K], dtype=np.complex128) / np.sqrt(self.M)
         else:
             H_tilde = np.vstack([H_eff, H_eff_e])
             I_tilde = np.vstack([np.eye(self.K), np.zeros((self.K_e, self.K))])
@@ -504,9 +588,15 @@ class AVRIS():
         #####################################################
         secrecy_rate = np.sum(self.bit_rates) - self.scale_eve * np.sum(self.eve_rates)
         #####################################################         
-        
-        reward = self.reward_scale* secrecy_rate
-
+        if self.reward_setup == "rate":
+            reward = self.reward_scale* secrecy_rate
+        elif self.reward_setup == "SNIR":
+            reward = np.sum(SNIRs) - np.sum(SNIRs_e)
+            
+        elif self.reward_setup == "SNIR+":
+            reward = np.sum(SNIRs)/np.sum(SNIRs_e)
+            
+        #####################################################
         if not self.fixed_Eve:
             self.xyz_loc_Eve[:, 0:2] = np.random.uniform(self.x_eve_boundry, self.y_eve_boundry, (self.K_e, 2))
             
