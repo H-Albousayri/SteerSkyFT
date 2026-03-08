@@ -3,11 +3,14 @@ import random
 from gym import spaces
 class AVRIS():
     def __init__(self, My_BS, Mz_BS, Nx_RIS, Ny_RIS, num_users=3, num_eves=2, consider_LoS=True, PL_ratio=2.0, UE_spacing=20, UAV_height=50,
-                 state_setup="Angle", reward_setup="rate",fixed_eve=False, train_G=True, seed=None, mode="Beamforming"):
+                 state_setup="Angle", reward_setup="rate",fixed_eve=False, train_G=True, seed=None, mode="Beamforming", eval=False,
+                 x_eve_boundry=-10.0, y_eve_boundry=80.0, init_x=100.0, init_y=100.0, DQN="False"):
         super(AVRIS, self).__init__()
         
         self.state_setup = state_setup
         self.reward_setup = reward_setup
+        self.eval = eval
+        self.init_x, self.init_y = init_x, init_y
         
         self.seed(seed)
         self.metadata = {'render.modes': []} # For parallel training
@@ -52,6 +55,30 @@ class AVRIS():
         self.Phi = np.eye(self.N, dtype=np.complex128) #* (np.random.random(self.N) + 1j*np.random.random(self.N)) / np.sqrt(2)
         
         ###########################
+        self.DQN = DQN
+        
+        self.ShiftCodebook = [np.exp(0.007j * np.pi * 2 * np.arange(0, self.N, 1)),
+                             np.exp(-0.007j * np.pi * 2 * np.arange(0, self.N, 1)),
+                             np.exp(0.5j * np.pi * 2 * np.arange(0, self.N, 1)),
+                             np.exp(-0.5j * np.pi * 2 * np.arange(0, self.N, 1)),
+                             np.exp(0.125j * np.pi * 2 * np.arange(0, self.N, 1)),
+                             np.exp(-0.125j * np.pi * 2 * np.arange(0, self.N, 1)),
+                             np.exp(0.05j * np.pi * 2 * np.arange(0, self.N, 1)),
+                             np.exp(-0.05j * np.pi * 2 * np.arange(0, self.N, 1)),
+                             np.exp(0.01j * np.pi * 2 * np.arange(0, self.N, 1)),
+                             np.exp(-0.01j * np.pi * 2 * np.arange(0, self.N, 1)),
+                             np.exp(0j * np.pi * 2 * np.arange(0, self.N, 1)),]
+
+        self.G_shift = [np.exp(0.007j * np.pi * 2 * np.arange(0, self.M, 1).reshape(self.M,1)),
+                        np.exp(-0.007j * np.pi * 2 * np.arange(0, self.M, 1).reshape(self.M,1)),
+                        np.exp(0.5j * np.pi * 2 * np.arange(0, self.M, 1).reshape(self.M,1)),
+                        np.exp(-0.5j * np.pi * 2 * np.arange(0, self.M, 1).reshape(self.M,1)),
+                        np.exp(0.125j * np.pi * 2 * np.arange(0, self.M, 1).reshape(self.M,1)),
+                        np.exp(-0.125j * np.pi * 2 * np.arange(0, self.M, 1).reshape(self.M,1)),
+                        np.exp(0.01j * np.pi * 2 * np.arange(0, self.M, 1).reshape(self.M,1)),
+                        np.exp(-0.01j * np.pi * 2 * np.arange(0, self.M, 1).reshape(self.M,1))]
+
+        ###########################
         
         self.P_max = 100
         self.awgn_var = 10**-12
@@ -73,8 +100,8 @@ class AVRIS():
         ###########################
         self.xyz_loc_Eve = np.zeros((self.K_e, 3))
         
-        self.x_eve_boundry = -10
-        self.y_eve_boundry = 80
+        self.x_eve_boundry = x_eve_boundry
+        self.y_eve_boundry = y_eve_boundry
         if not self.fixed_Eve:
             self.xyz_loc_Eve[:, 0:2] = np.random.uniform(self.x_eve_boundry, self.y_eve_boundry, (self.K_e, 2))
         else:
@@ -107,6 +134,8 @@ class AVRIS():
         
         self.done = True
 
+        
+        print(f"mode = {self.mode} | DQN : {self.DQN} | self.state_setup : {self.state_setup} ")
         if self.mode == "Beamforming":   
             if self.train_G:
                 self.action_dim = self.N + self.M*self.K
@@ -120,23 +149,21 @@ class AVRIS():
             self.state_dim = 3 + 3*self.K
         
         elif self.mode == "All":
-            self.action_dim = self.N + self.M*self.K + 2
-            
             if self.state_setup == "Angle":
                 self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
-                                    self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2
+                                  self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2
                 )
             
-            if self.state_setup == "Angle_r":
+            elif self.state_setup == "Angle_r":
                 self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
                                     self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2 + 1
                 )
                 
-            if self.state_setup == "Angle+":
+            elif self.state_setup == "Angle+":
                 self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
                                     self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2*(1+self.K_e)
                 )
-            if self.state_setup == "Angle++":
+            elif self.state_setup == "Angle++":
                 self.state_dim = (self.N * self.M +  self.N * self.K + self.M * self.K +
                                     self.M * self.K_e + self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2*(1+self.K_e) + 1
                 )
@@ -144,6 +171,18 @@ class AVRIS():
                 self.state_dim = (2*self.N * self.M +  2*self.N * self.K + 2*self.M * self.K +
                                     2*self.M * self.K_e + 2*self.N * self.K_e + 2
                 )
+            elif self.state_setup == "ReIm+":
+                self.state_dim = (2*self.N * self.M +  2*self.N * self.K + 2*self.M * self.K +
+                                    2*self.M * self.K_e + 2*self.N * self.K_e + 2*(self.K + self.K_e) + 1 + 2
+                )
+                
+            print(f"state : {self.state_dim}")
+            if self.DQN:
+                self.action_dim = len(self.ShiftCodebook) + len(self.G_shift) + 4
+            else:
+                self.action_dim = self.N + self.M*self.K + 2
+            
+
                 
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.action_dim,), dtype=np.float32)
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.state_dim,), dtype=np.float32)
@@ -188,7 +227,7 @@ class AVRIS():
                                 
                 ])
                 
-            if self.state_setup == "Angle_r":
+            elif self.state_setup == "Angle_r":
                 return np.hstack([np.angle(self.H_1).reshape(-1)/np.pi,
                                     np.angle(self.H_2).reshape(-1)/np.pi,
                                     np.angle(self.H_d).reshape(-1)/np.pi,
@@ -247,6 +286,25 @@ class AVRIS():
                                   np.real(self.H_d_e).reshape(-1),
                                   np.imag(self.H_d_e).reshape(-1),
                                   self.xyz_loc_UAV[0:2]*1e-3
+                ])
+                
+            elif self.state_setup == "ReIm+":
+                return np.hstack([np.real(self.H_1).reshape(-1),
+                                  np.imag(self.H_1).reshape(-1),
+                                  np.real(self.H_2).reshape(-1),
+                                  np.imag(self.H_2).reshape(-1),
+                                  np.real(self.H_d).reshape(-1),
+                                  np.imag(self.H_d).reshape(-1),
+                                  np.real(self.H_2_e).reshape(-1),
+                                  np.imag(self.H_2_e).reshape(-1),
+                                  np.real(self.H_d_e).reshape(-1),
+                                  np.imag(self.H_d_e).reshape(-1),
+                                  self.xyz_loc_UAV[0:2]*1e-3,
+                                  self.BS_UAV_dis*1e-3, 
+                                  self.UAV_UE_dis.flatten()*1e-3, 
+                                  self.BS_UE_dis.flatten()*1e-3, 
+                                  self.UAV_Eve_dis.flatten()*1e-3,
+                                  self.BS_Eve_dis.flatten()*1e-3
                 ])
             
         elif self.mode == "Move":
@@ -310,7 +368,10 @@ class AVRIS():
         if not self.fixed_Eve:
             self.xyz_loc_Eve[:, 0:2] = np.random.uniform(self.x_eve_boundry, self.y_eve_boundry, (self.K_e, 2))
 
-        self.xyz_loc_UAV[:2] = np.random.uniform(100, 200, size=(2,))
+        if not self.eval:
+            self.xyz_loc_UAV[:2] = np.random.uniform(100, 200, size=(2,))
+        else:
+            self.xyz_loc_UAV = np.array([self.init_x, self.init_y, self.UAV_height])
         
         self.Phi = np.eye(self.N, dtype=np.complex128) * np.exp(1j*np.pi* np.random.uniform(-1, 1, size=self.N))
         
@@ -399,8 +460,6 @@ class AVRIS():
         #######################################
         #######################################
         
-
-            
         H_eff = self.H_2.conj().T @ self.Phi @ self.H_1 + self.H_d
         H_eff_e = self.H_2_e.conj().T @ self.Phi @ self.H_1 + self.H_d_e
         
@@ -461,10 +520,31 @@ class AVRIS():
             self.xyz_loc_UAV[0:2] += dx, dy
         
         if self.mode == "All":
-            self.Phi = np.diag(np.exp(1j * action[:self.N] * np.pi))
-            self.G = np.exp(1j * action[self.N:self.N+self.M*self.K] * np.pi).reshape(self.M, self.K) / np.sqrt(self.M)
-            dx, dy = action[self.N+self.M*self.K:]
-            self.xyz_loc_UAV[0:2] += dx, dy
+            if self.DQN:
+                if action <= len(self.ShiftCodebook) - 1:
+                    self.Phi *= np.diag(self.ShiftCodebook[action])
+                elif action > (len(self.ShiftCodebook) - 1) and action <= (len(self.ShiftCodebook) + len(self.G_shift) - 1):
+                    action -= len(self.ShiftCodebook)
+                    self.G *= self.G_shift[action]
+                else:
+                    action -= (len(self.ShiftCodebook) + len(self.G_shift))
+                    if action ==0:
+                        self.xyz_loc_UAV[0] += 1
+                    
+                    if action ==1:
+                        self.xyz_loc_UAV[0] -= 1
+                    
+                    if action ==2:
+                        self.xyz_loc_UAV[1] += 1
+                        
+                    if action ==3:
+                        self.xyz_loc_UAV[1] -= 1
+                        
+            else:
+                self.Phi = np.diag(np.exp(1j * action[:self.N] * np.pi))
+                self.G = np.exp(1j * action[self.N:self.N+self.M*self.K] * np.pi).reshape(self.M, self.K) / np.sqrt(self.M)
+                dx, dy = action[self.N+self.M*self.K:]
+                self.xyz_loc_UAV[0:2] += dx, dy
         
         if self.mode == "Beamforming" and self.train_G:
             self.Phi = np.diag(np.exp(1j * action[:self.N] * np.pi))

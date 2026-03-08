@@ -17,6 +17,7 @@ def main():
     parser.add_argument("--N", type=int, default=16, help="Number of RIS elements")
     parser.add_argument("--fixed_eve", action="store_true", help="Whether to keep eve at (K_e, 40)")
     parser.add_argument("--los", action="store_true", help="Whether to consider Prop. of LoS to be 1 all the time")
+    parser.add_argument("--DQN", action="store_true", help="Whether to use DQN or not")
     parser.add_argument("--lamda_init", type=float, default=1e-4, help="Initial weight decay")
     parser.add_argument("--init_steps", type=int, default=1000, help="Init time steps")
     parser.add_argument("--init_batch", type=int, default=128, help="Init batch size for the batch scheduler")
@@ -26,7 +27,9 @@ def main():
     parser.add_argument("--PL_ratio", type=float, default=2.0, help="Ratio between direct channels PL and reflected channels")
     parser.add_argument("--UE_spacing", type=float, default=10, help="X axis spacing between UE")
     parser.add_argument("--UAV_height", type=float, default=50, help="UAV z position")
-    parser.add_argument("--state_setup", type=str, choices=["Angle", "Angle_r", "Angle+", "Angle++", "ReIm"], help="state representation")
+    parser.add_argument("--x_eve_boundry", type=float, default=20, help="xy Eve lower bound")
+    parser.add_argument("--y_eve_boundry", type=float, default=70, help="xy Eve upper bound")
+    parser.add_argument("--state_setup", type=str, choices=["Angle", "Angle_r", "Angle+", "Angle++", "ReIm", "ReIm+"], help="state representation")
     parser.add_argument("--reward_setup", type=str, choices=["rate", "SNIR", "SNIR+"], help="reward representation")
     parser.add_argument("--max_episodes", type=int, default=300, help="Maximum number of episodes")
     parser.add_argument("--warmup_episodes", type=int, default=50, help="When to start some schedulers")
@@ -50,8 +53,11 @@ def main():
                         UAV_height=args.UAV_height,
                         state_setup=args.state_setup,
                         reward_setup=args.reward_setup,
+                        x_eve_boundry=args.x_eve_boundry,
+                        y_eve_boundry=args.y_eve_boundry,
                         train_G=True,
                         seed=seed,
+                        DQN=args.DQN,
                         mode="All")
             return env
         return _init
@@ -63,7 +69,7 @@ def main():
 
         avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
            
-        save_dir = f"Drone_Agent/Run_{timestamp}_(M,N,K,L,FixEv,Ey,PLoS,PL_r,UE_spacing,UAVz,SU,R)=({args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{np.round(avris_env.envs[0].xyz_loc_Eve[0, 1],2)},{args.los},{args.PL_ratio},{args.UE_spacing},{args.UAV_height},{args.state_setup},{args.reward_setup})/seed:{seed}"
+        save_dir = f"Drone_Agent/Run_{timestamp}_(DQN,M,N,K,L,FixEv,Ey,PLoS,PL_r,UE_spacing,UAVz,SU,R)=({args.DQN},{args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{np.round(avris_env.envs[0].xyz_loc_Eve[0, 1],2)},{args.los},{args.PL_ratio},{args.UE_spacing},{args.UAV_height},{args.state_setup},{args.reward_setup})/seed:{seed}"
         log_file = setup_logger(save_dir)
         logging.info(f"Logging to: {log_file}")
         
@@ -71,6 +77,7 @@ def main():
         for arg, val in vars(args).items():
             logging.info(f"{arg}: {val}")
             
+        
         logging.info(f"state dims: {avris_env.envs[0].state_dim}")
         logging.info(f"action dims: {avris_env.envs[0].action_dim}")
         logging.info("=============================================")
@@ -87,7 +94,9 @@ def main():
             capacity=args.capacity,
             device=args.device
         )
-
+        logging.info(f"actor params: {count_all_parameters(avris_agent.actor)}")
+        logging.info(f"critic params: {count_all_parameters(avris_agent.critic1)}")
+        
         Ep_Rewards = []
         UE_Rates = []
         Eve_Rates = []

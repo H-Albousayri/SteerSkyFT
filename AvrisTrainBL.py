@@ -1,6 +1,6 @@
 from utils import *
 from DroneEnv import *
-from AgentRobust import *
+from Agent import *
 from AvrisEnv import *
 
 
@@ -17,14 +17,20 @@ def main():
     parser.add_argument("--N", type=int, default=16, help="Number of RIS elements")
     parser.add_argument("--fixed_eve", action="store_true", help="Whether to keep eve at (K_e, 40)")
     parser.add_argument("--los", action="store_true", help="Whether to consider Prop. of LoS to be 1 all the time")
+    parser.add_argument("--DQN", action="store_true", help="Whether to use DQN or not")
     parser.add_argument("--lamda_init", type=float, default=1e-4, help="Initial weight decay")
     parser.add_argument("--init_steps", type=int, default=1000, help="Init time steps")
     parser.add_argument("--init_batch", type=int, default=128, help="Init batch size for the batch scheduler")
+    parser.add_argument("--last_batch", type=int, default=1024, help="Init batch size for the batch scheduler")
     parser.add_argument("--init_noise", type=float, default=0.45, help="Init noise STD")
     parser.add_argument("--h_dims", type=int, default=512, help="First layer h_dims")
     parser.add_argument("--PL_ratio", type=float, default=2.0, help="Ratio between direct channels PL and reflected channels")
     parser.add_argument("--UE_spacing", type=float, default=10, help="X axis spacing between UE")
     parser.add_argument("--UAV_height", type=float, default=50, help="UAV z position")
+    parser.add_argument("--x_eve_boundry", type=float, default=20, help="xy Eve lower bound")
+    parser.add_argument("--y_eve_boundry", type=float, default=70, help="xy Eve upper bound")
+    parser.add_argument("--state_setup", type=str, choices=["Angle", "Angle_r", "Angle+", "Angle++", "ReIm", "ReIm+"], help="state representation")
+    parser.add_argument("--reward_setup", type=str, choices=["rate", "SNIR", "SNIR+"], help="reward representation")
     parser.add_argument("--max_episodes", type=int, default=300, help="Maximum number of episodes")
     parser.add_argument("--warmup_episodes", type=int, default=50, help="When to start some schedulers")
     parser.add_argument("--capacity", type=int, default=20000, help="Replay Buffer size")
@@ -35,7 +41,6 @@ def main():
     M_, N_ = int(np.sqrt(args.M)), int(np.sqrt(args.N))
     warmup_episodes = args.warmup_episodes
     
-    
     def make_env(seed):
         def _init():
             env = AVRIS(My_BS=M_, Mz_BS=M_, Nx_RIS=N_, Ny_RIS=N_,
@@ -45,9 +50,14 @@ def main():
                         fixed_eve=args.fixed_eve,
                         PL_ratio=args.PL_ratio,
                         UE_spacing=args.UE_spacing,
-                        UAV_height = args.UAV_height,
+                        UAV_height=args.UAV_height,
+                        state_setup=args.state_setup,
+                        reward_setup=args.reward_setup,
+                        x_eve_boundry=args.x_eve_boundry,
+                        y_eve_boundry=args.y_eve_boundry,
                         train_G=True,
                         seed=seed,
+                        DQN=args.DQN,
                         mode="All")
             return env
         return _init
@@ -59,7 +69,7 @@ def main():
 
         avris_env = SyncVectorEnv([make_env(seed=i) for i in range(args.num_envs)])
            
-        save_dir = f"Drone_Agent/Run_TD3__{timestamp}_(M,N,K,L,FixEv,Ey,PLoS,PL,UAVz)=({args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{np.round(avris_env.envs[0].xyz_loc_Eve[0, 1],2)},{args.los},{args.PL_ratio},{args.UAV_height})/seed:{seed}"
+        save_dir = f"Drone_Agent/Run_DDPG__{timestamp}_(DQN,M,N,K,L,FixEv,Ey,PLoS,PL_r,UE_spacing,UAVz,SU,R)=({args.DQN},{args.M},{args.N},{args.num_users},{args.num_eves},{args.fixed_eve},{np.round(avris_env.envs[0].xyz_loc_Eve[0, 1],2)},{args.los},{args.PL_ratio},{args.UE_spacing},{args.UAV_height},{args.state_setup},{args.reward_setup})/seed:{seed}"
         log_file = setup_logger(save_dir)
         logging.info(f"Logging to: {log_file}")
         
@@ -166,9 +176,16 @@ def main():
                 f"Config | lamda={new_lamda:.2e} | noise={exploration_noise:.4f} | "
                 f"steps={time_steps} | BS={batch_size} | "
                 f"actorLR={avris_agent.actor_scheduler.optimizer.param_groups[0]['lr']:.2e} | "
-                f"criticLR={avris_agent.critic1_scheduler.optimizer.param_groups[0]['lr']:.2e}"
+                f"criticLR={avris_agent.critic_scheduler.optimizer.param_groups[0]['lr']:.2e}"
             )
 
+            # logging.info(
+            #     f"Config | lamda={new_lamda:.2e} | noise={exploration_noise:.4f} | "
+            #     f"steps={time_steps} | BS={batch_size} | "
+            #     f"actorLR={avris_agent.actor_scheduler.optimizer.param_groups[0]['lr']:.2e} | "
+            #     f"criticLR={avris_agent.critic1_scheduler.optimizer.param_groups[0]['lr']:.2e}"
+            # )
+            
             logging.info("=" * 100)
         
         save_metrics(Ep_Rewards, UE_Rates, Eve_Rates, iS_LoS_Probs, save_dir)

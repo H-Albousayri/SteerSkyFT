@@ -1,0 +1,33 @@
+2025-10-22 20:08:46,599 | INFO | Logging to: Drone_Agent/Run_20251022_200846_(DQN,M,N,K,L,FixEv,Ey,PLoS,PL_r,UE_spacing,UAVz,SU,R)=(False,16,16,3,2,False,39.04,True,2.0,20.0,50.0,Angle+,rate)/seed:100/train.log
+2025-10-22 20:08:46,600 | INFO | ========== Training Configuration ==========
+2025-10-22 20:08:46,600 | INFO | num_users: 3
+2025-10-22 20:08:46,600 | INFO | num_eves: 2
+2025-10-22 20:08:46,600 | INFO | num_envs: 5
+2025-10-22 20:08:46,600 | INFO | M: 16
+2025-10-22 20:08:46,600 | INFO | N: 16
+2025-10-22 20:08:46,600 | INFO | fixed_eve: False
+2025-10-22 20:08:46,600 | INFO | los: True
+2025-10-22 20:08:46,600 | INFO | DQN: False
+2025-10-22 20:08:46,600 | INFO | lamda_init: 0.0001
+2025-10-22 20:08:46,600 | INFO | init_steps: 500
+2025-10-22 20:08:46,600 | INFO | init_batch: 128
+2025-10-22 20:08:46,600 | INFO | last_batch: 512
+2025-10-22 20:08:46,600 | INFO | init_noise: 0.45
+2025-10-22 20:08:46,600 | INFO | h_dims: 512
+2025-10-22 20:08:46,600 | INFO | PL_ratio: 2.0
+2025-10-22 20:08:46,600 | INFO | UE_spacing: 20.0
+2025-10-22 20:08:46,600 | INFO | UAV_height: 50.0
+2025-10-22 20:08:46,600 | INFO | x_eve_boundry: -10.0
+2025-10-22 20:08:46,600 | INFO | y_eve_boundry: 80.0
+2025-10-22 20:08:46,600 | INFO | state_setup: Angle+
+2025-10-22 20:08:46,600 | INFO | reward_setup: rate
+2025-10-22 20:08:46,600 | INFO | max_episodes: 300
+2025-10-22 20:08:46,600 | INFO | warmup_episodes: 50
+2025-10-22 20:08:46,600 | INFO | capacity: 100000
+2025-10-22 20:08:46,600 | INFO | seed: [100, 200, 300]
+2025-10-22 20:08:46,600 | INFO | device: cuda
+2025-10-22 20:08:46,601 | INFO | state dims: 433
+2025-10-22 20:08:46,601 | INFO | action dims: 66
+2025-10-22 20:08:46,601 | INFO | =============================================
+2025-10-22 20:08:47,371 | INFO | actor params: 371522
+2025-10-22 20:08:47,371 | INFO | critic params: 388609
